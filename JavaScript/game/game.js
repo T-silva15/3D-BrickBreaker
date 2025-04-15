@@ -44,7 +44,7 @@ export const state = {
         hemispheric: false
     },
     trajectoryObjects: [],
-    trajectoryColor: 0xffff00
+    trajectoryColor: 0xff0000
 };
 
 // Constants for game dimensions

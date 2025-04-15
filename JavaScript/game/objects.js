@@ -478,12 +478,12 @@ function checkLevelComplete() {
 // Update paddle position
 function updatePaddle() {
     if (state.useMouse) {
-        // Mouse control with more responsive movement
-        state.paddle.position.x += (state.mousePosition.x - state.paddle.position.x) * 0.2; // Increased responsiveness
+        // Mouse control with responsive movement
+        state.paddle.position.x += (state.mousePosition.x - state.paddle.position.x) * 0.2;
         
         // Limit Z movement to front third of game area
         const targetZ = Math.max(-constants.GAME_DEPTH/6, Math.min(constants.GAME_DEPTH/3, state.mousePosition.z));
-        state.paddle.position.z += (targetZ - state.paddle.position.z) * 0.2; // Increased responsiveness
+        state.paddle.position.z += (targetZ - state.paddle.position.z) * 0.2;
     } else {
         // Keyboard control with fixed speed
         const moveSpeed = constants.PADDLE_SPEED;

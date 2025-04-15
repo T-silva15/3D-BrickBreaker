@@ -15,15 +15,15 @@ export function createTrajectoryLine() {
     // Create small spheres for each point in the trajectory
     const sphereGeometry = new THREE.SphereGeometry(constants.BALL_RADIUS * 0.5, 8, 8);
     const sphereMaterial = new THREE.MeshBasicMaterial({ 
-        color: state.trajectoryColor || 0xffff00, // Default to yellow if not set
+        color: state.trajectoryColor || 0xffff00, 
         transparent: true,
-        opacity: 0.6 // Increased opacity for better visibility
+        opacity: 0.6
     });
     
     // Create spheres for each trajectory point (reduced for better performance)
     const visiblePoints = Math.min(100, TRAJECTORY_LENGTH);
     for (let i = 0; i < visiblePoints; i++) {
-        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial.clone()); // Clone material for individual opacity
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial.clone());
         sphere.visible = true;
         state.scene.add(sphere);
         state.trajectoryObjects.push(sphere);
@@ -93,7 +93,7 @@ export function updateTrajectory() {
     // Exit if no trajectory or no ball
     if (state.trajectoryObjects.length === 0 || !state.ball) return;
     
-    // Always make trajectory visible when enabled (removed game state conditions)
+    // Always make trajectory visible when enabled
     const shouldBeVisible = state.showTrajectory;
     
     // Update visibility for all trajectory objects
