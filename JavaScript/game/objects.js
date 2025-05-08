@@ -4,6 +4,72 @@ import { displayMessage } from './ui.js';
 
 const textureLoader = new THREE.TextureLoader();
 
+// Add this function near the top of the file
+function createStarTexture() {
+    const canvasSize = 512; // Larger texture for better quality
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill background with dark red
+    ctx.fillStyle = '#990000';
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+    
+    // Draw star
+    const centerX = canvasSize / 2;
+    const centerY = canvasSize / 2;
+    const outerRadius = canvasSize * 0.45;
+    const innerRadius = canvasSize * 0.18;
+    const spikes = 5;
+    
+    // Use a more defined star shape with better contrast
+    ctx.beginPath();
+    ctx.fillStyle = '#ffdd00'; // Bright yellow
+    
+    // Draw star points
+    for (let i = 0; i < spikes * 2; i++) {
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const angle = (Math.PI / spikes) * i - Math.PI/2; // Start from top
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+        
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    
+    ctx.closePath();
+    ctx.fill();
+    
+    // Add glow effect around the star
+    const gradient = ctx.createRadialGradient(
+        centerX, centerY, innerRadius,
+        centerX, centerY, outerRadius * 1.2
+    );
+    gradient.addColorStop(0, 'rgba(255, 255, 100, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(255, 200, 50, 0.3)');
+    gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+    
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, outerRadius * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add center highlight
+    ctx.beginPath();
+    ctx.fillStyle = '#ffffff'; 
+    ctx.arc(centerX, centerY, innerRadius * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 16; // Improve texture quality
+    return texture;
+}
+
 // Create the game boundaries
 export function createGameArea() {
     // Create a container for the game area
@@ -165,8 +231,23 @@ export function createPaddle() {
 // Create the ball
 export function createBall() {
     const ballGeometry = new THREE.SphereGeometry(constants.BALL_RADIUS, 32, 32);
-    const ballMaterial = new THREE.MeshPhongMaterial({ color: 0xff5555 });
+    
+    // Create cyberpunk ball texture
+    const ballTexture = createCyberpunkBallTexture();
+    
+    // Create material with the texture
+    const ballMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xffffff,
+        emissive: 0x0066ff,
+        emissiveIntensity: 0.7,
+        map: ballTexture
+    });
+    
     state.ball = new THREE.Mesh(ballGeometry, ballMaterial);
+    
+    // Store texture for animation
+    state.ball.userData.texture = ballTexture;
+    state.ball.userData.animTime = 0;
     
     // Position the ball above the paddle
     state.ball.position.set(
@@ -175,8 +256,8 @@ export function createBall() {
         0
     );
     
-    // Add a small light to the ball
-    const ballLight = new THREE.PointLight(0xff6666, 0.7, 10);
+    // Add a small light to the ball - increased intensity
+    const ballLight = new THREE.PointLight(0x00ffff, 1.5, 10);
     ballLight.position.set(0, 0, 0);
     state.ball.add(ballLight);
     
@@ -186,6 +267,189 @@ export function createBall() {
     
     // Set initial velocity
     state.ballVelocity.normalize().multiplyScalar(constants.BALL_SPEED);
+}
+
+// Create a cyberpunk-themed paddle with neon edges
+function createCyberpunkPaddleTexture() {
+    const canvasSize = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    const ctx = canvas.getContext('2d');
+    
+    // Dark metallic background
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+    
+    // Add glowing neon edge
+    const glowWidth = canvasSize * 0.05;
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = glowWidth;
+    ctx.strokeRect(glowWidth/2, glowWidth/2, canvasSize - glowWidth, canvasSize - glowWidth);
+    
+    // Add tech pattern
+    ctx.strokeStyle = '#0088ff';
+    ctx.lineWidth = 2;
+    
+    // Circuit-like pattern
+    for (let i = 0; i < 5; i++) {
+        const offset = canvasSize * 0.2 + i * canvasSize * 0.15;
+        ctx.beginPath();
+        ctx.moveTo(offset, 0);
+        ctx.lineTo(offset, canvasSize * 0.3);
+        ctx.lineTo(canvasSize * 0.7, canvasSize * 0.3);
+        ctx.lineTo(canvasSize * 0.7, canvasSize * 0.7);
+        ctx.lineTo(canvasSize * 0.3, canvasSize * 0.7);
+        ctx.lineTo(canvasSize * 0.3, canvasSize * 0.5);
+        ctx.stroke();
+    }
+    
+    return new THREE.CanvasTexture(canvas);
+}
+
+function createCyberpunkBallTexture() {
+    const canvasSize = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    const ctx = canvas.getContext('2d');
+    
+    // Animation properties to store in userData
+    const animationData = {
+        rings: [],
+        pulseSpeed: 0.05,
+        rotationSpeed: 0.02,
+        time: 0
+    };
+
+    // Create 4 neon rings with different properties
+    for (let i = 0; i < 4; i++) {
+        animationData.rings.push({
+            radius: 0.3 + i * 0.15,
+            color: i % 2 === 0 ? '#00ffff' : '#ff00ff',
+            phase: i * Math.PI / 2,
+            thickness: 5 + i * 3
+        });
+    }
+    
+    // Function to render the current frame
+    const renderFrame = (time) => {
+        // Clear canvas with dark background
+        ctx.fillStyle = '#000820';
+        ctx.fillRect(0, 0, canvasSize, canvasSize);
+        
+        const center = canvasSize / 2;
+        
+        // Draw grid pattern
+        ctx.strokeStyle = '#103050';
+        ctx.lineWidth = 1;
+        
+        // Horizontal grid lines
+        for (let i = 0; i < canvasSize; i += 16) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(canvasSize, i);
+            ctx.stroke();
+        }
+        
+        // Vertical grid lines
+        for (let i = 0; i < canvasSize; i += 16) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, canvasSize);
+            ctx.stroke();
+        }
+        
+        // Draw animated neon rings
+        animationData.rings.forEach((ring) => {
+            // Calculate pulsating radius
+            const pulseFactor = 0.15 * Math.sin(time * animationData.pulseSpeed + ring.phase);
+            const currentRadius = (ring.radius + pulseFactor) * canvasSize;
+            
+            // Draw the ring
+            ctx.beginPath();
+            ctx.arc(center, center, currentRadius, 0, Math.PI * 2);
+            
+            // Create gradient for glow effect
+            const gradient = ctx.createRadialGradient(
+                center, center, currentRadius - ring.thickness,
+                center, center, currentRadius + ring.thickness
+            );
+            gradient.addColorStop(0, ring.color + '00'); // Transparent
+            gradient.addColorStop(0.5, ring.color + 'ff'); // Full color
+            gradient.addColorStop(1, ring.color + '00'); // Transparent
+            
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = ring.thickness;
+            ctx.stroke();
+        });
+        
+        // Draw intersecting circuitry lines
+        ctx.strokeStyle = '#00ffaa';
+        ctx.lineWidth = 2;
+        
+        // Draw circuit pattern that rotates
+        const rotation = time * 0.01;
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2 + rotation;
+            const x1 = center + Math.cos(angle) * center * 0.8;
+            const y1 = center + Math.sin(angle) * center * 0.8;
+            const x2 = center + Math.cos(angle + Math.PI) * center * 0.8;
+            const y2 = center + Math.sin(angle + Math.PI) * center * 0.8;
+            
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            
+            // Add "nodes" at intersections
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.arc(x1, y1, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Add digital noise effect
+        for (let i = 0; i < 50; i++) {
+            const x = Math.random() * canvasSize;
+            const y = Math.random() * canvasSize;
+            const size = 2 + Math.random() * 3;
+            ctx.fillStyle = `rgba(0, 255, 255, ${Math.random() * 0.7})`;
+            ctx.fillRect(x, y, size, size);
+        }
+        
+        // Add central core
+        const coreGradient = ctx.createRadialGradient(
+            center, center, 0,
+            center, center, canvasSize * 0.15
+        );
+        coreGradient.addColorStop(0, '#ffffff');
+        coreGradient.addColorStop(0.2, '#00ffff');
+        coreGradient.addColorStop(0.7, '#0080ff');
+        coreGradient.addColorStop(1, '#000080');
+        
+        ctx.fillStyle = coreGradient;
+        ctx.beginPath();
+        ctx.arc(center, center, canvasSize * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+    };
+    
+    // Initial render
+    renderFrame(0);
+    
+    // Create texture
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 16;
+    
+    // Store animation data for updates
+    texture.userData = {
+        canvas: canvas,
+        ctx: ctx,
+        renderFrame: renderFrame,
+        animationData: animationData
+    };
+    
+    return texture;
 }
 
 // Create the bricks
@@ -339,8 +603,18 @@ function updateBall() {
     state.ball.position.z += state.ballVelocity.z;
     
     // Apply rotation for visual effect
-    state.ball.rotation.x += 0.02;
-    state.ball.rotation.z += 0.02;
+    state.ball.rotation.y += 0.05;
+    
+    // Animate texture - update and redraw
+    if (state.ball.userData.texture && state.ball.userData.texture.userData) {
+        const textureData = state.ball.userData.texture.userData;
+        // Increment animation time
+        state.ball.userData.animTime = (state.ball.userData.animTime || 0) + 0.05;
+        // Render new frame
+        textureData.renderFrame(state.ball.userData.animTime);
+        // Update texture
+        state.ball.userData.texture.needsUpdate = true;
+    }
     
     // Handle boundary collisions
     handleBoundaryCollisions();
