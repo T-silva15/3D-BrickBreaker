@@ -254,8 +254,21 @@ function addDebugControls() {
         if (event.key === 't') {
             toggleTrajectory();
         }
-        if (event.key === 'o') {
+        if (event.key === 'c') {
             toggleCameraType();
         }
     });
+}
+
+// Implement missing debug control functions
+function toggleTrajectory() {
+    state.showTrajectory = !state.showTrajectory;
+    console.log("Trajectory visibility:", state.showTrajectory ? "shown" : "hidden");
+    updateTrajectory();
+}
+
+function toggleCameraType() {
+    state.currentCameraIndex = (state.currentCameraIndex + 1) % state.cameras.length;
+    state.camera = state.cameras[state.currentCameraIndex];
+    console.log("Switched to camera:", state.currentCameraIndex);
 }

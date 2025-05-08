@@ -6,71 +6,135 @@ const textureLoader = new THREE.TextureLoader();
 
 // Create the game boundaries
 export function createGameArea() {
-    const areaGeometry = new THREE.BoxGeometry(
-        constants.GAME_WIDTH, 
-        constants.GAME_HEIGHT, 
-        constants.GAME_DEPTH
-    );
-    const wireframeMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x444444, 
-        wireframe: true,
-        transparent: true,
-        opacity: 0.3
-    });
-    state.gameArea = new THREE.Mesh(areaGeometry, wireframeMaterial);
-    state.scene.add(state.gameArea);
-
-    // Create floor and walls
-    createFloor();
-    createWalls();
-}
-
-// Create the bottom floor
-function createFloor() {
-    const bottomGeometry = new THREE.PlaneGeometry(constants.GAME_WIDTH, constants.GAME_DEPTH);
-    const bottomMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0x222222,
+    // Create a container for the game area
+    const gameArea = new THREE.Group();
+    state.scene.add(gameArea);
+    
+    // Create static neon texture for walls
+    const canvasSize = 512;
+    const wallCanvas = document.createElement('canvas');
+    wallCanvas.width = canvasSize;
+    wallCanvas.height = canvasSize;
+    const wallContext = wallCanvas.getContext('2d');
+    
+    // Draw static neon grid pattern
+    drawNeonGridTexture(wallCanvas, wallContext);
+    
+    // Create texture from canvas
+    const wallTexture = new THREE.CanvasTexture(wallCanvas);
+    wallTexture.wrapS = THREE.RepeatWrapping;
+    wallTexture.wrapT = THREE.RepeatWrapping;
+    wallTexture.repeat.set(5, 5);
+    
+    // Create material with neon effect
+    const wallMaterial = new THREE.MeshStandardMaterial({
+        map: wallTexture,
+        roughness: 0.7,
+        metalness: 0.3,
         side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.7
+        emissive: 0x0a0a2a,
+        emissiveIntensity: 1.0
     });
-    const bottomPlane = new THREE.Mesh(bottomGeometry, bottomMaterial);
-    bottomPlane.rotation.x = Math.PI / 2;
-    bottomPlane.position.y = -constants.GAME_HEIGHT/2;
-    bottomPlane.receiveShadow = true;
-    state.scene.add(bottomPlane);
-}
-
-// Create the walls
-function createWalls() {
-    const wallMaterial = new THREE.MeshPhongMaterial({
-        color: 0x333333,
-        transparent: true,
-        opacity: 0.3
-    });
+    
+    // Game area dimensions
+    const width = constants.GAME_WIDTH;
+    const height = constants.GAME_HEIGHT;
+    const depth = constants.GAME_DEPTH;
+    
+    // Create walls
+    // Bottom wall
+    const floorGeometry = new THREE.BoxGeometry(width, 1, depth);
+    const floor = new THREE.Mesh(floorGeometry, wallMaterial);
+    floor.position.y = -height/2;
+    floor.receiveShadow = true;
+    gameArea.add(floor);
     
     // Left wall
-    const leftWallGeometry = new THREE.BoxGeometry(1, constants.GAME_HEIGHT, constants.GAME_DEPTH);
+    const leftWallGeometry = new THREE.BoxGeometry(1, height, depth);
     const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
-    leftWall.position.x = -constants.GAME_WIDTH/2;
-    state.scene.add(leftWall);
+    leftWall.position.x = -width/2;
+    leftWall.receiveShadow = true;
+    gameArea.add(leftWall);
     
     // Right wall
-    const rightWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
-    rightWall.position.x = constants.GAME_WIDTH/2;
-    state.scene.add(rightWall);
+    const rightWallGeometry = new THREE.BoxGeometry(1, height, depth);
+    const rightWall = new THREE.Mesh(rightWallGeometry, wallMaterial);
+    rightWall.position.x = width/2;
+    rightWall.receiveShadow = true;
+    gameArea.add(rightWall);
     
     // Back wall
-    const backWallGeometry = new THREE.BoxGeometry(constants.GAME_WIDTH, constants.GAME_HEIGHT, 1);
+    const backWallGeometry = new THREE.BoxGeometry(width, height, 1);
     const backWall = new THREE.Mesh(backWallGeometry, wallMaterial);
-    backWall.position.z = -constants.GAME_DEPTH/2;
-    state.scene.add(backWall);
+    backWall.position.z = -depth/2;
+    backWall.receiveShadow = true;
+    gameArea.add(backWall);
     
     // Top wall
-    const topWallGeometry = new THREE.BoxGeometry(constants.GAME_WIDTH, 1, constants.GAME_DEPTH);
-    const topWall = new THREE.Mesh(topWallGeometry, wallMaterial);
-    topWall.position.y = constants.GAME_HEIGHT/2;
-    state.scene.add(topWall);
+    const ceilingGeometry = new THREE.BoxGeometry(width, 1, depth);
+    const ceiling = new THREE.Mesh(ceilingGeometry, wallMaterial);
+    ceiling.position.y = height/2;
+    ceiling.receiveShadow = true;
+    gameArea.add(ceiling);
+    
+    return gameArea;
+}
+
+// Function to draw neon grid texture
+function drawNeonGridTexture(canvas, context) {
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Fill background with dark color
+    context.fillStyle = '#0a0a20';
+    context.fillRect(0, 0, width, height);
+    
+    // Set line style for neon effect
+    context.lineWidth = 2;
+    
+    // Draw horizontal lines
+    const horizontalLineCount = 12;
+    const horizontalSpacing = height / horizontalLineCount;
+    
+    // Blue horizontal lines
+    context.strokeStyle = '#3366ff';
+    context.beginPath();
+    for (let i = 0; i <= horizontalLineCount; i++) {
+        const y = i * horizontalSpacing;
+        context.moveTo(0, y);
+        context.lineTo(width, y);
+    }
+    context.stroke();
+    
+    // Draw vertical lines with different color
+    const verticalLineCount = 12;
+    const verticalSpacing = width / verticalLineCount;
+    
+    // Cyan vertical lines
+    context.strokeStyle = '#33ccff';
+    context.beginPath();
+    for (let i = 0; i <= verticalLineCount; i++) {
+        const x = i * verticalSpacing;
+        context.moveTo(x, 0);
+        context.lineTo(x, height);
+    }
+    context.stroke();
+    
+    // Add glow effect to the lines
+    context.lineWidth = 1;
+    
+    // Purple diagonal lines for extra visual interest
+    context.strokeStyle = '#9966ff';
+    context.beginPath();
+    for (let i = -horizontalLineCount; i <= horizontalLineCount; i += 2) {
+        const offset = i * horizontalSpacing * 2;
+        context.moveTo(0, offset);
+        context.lineTo(width, offset + height);
+        
+        context.moveTo(0, offset + height);
+        context.lineTo(width, offset);
+    }
+    context.stroke();
 }
 
 // Create the player paddle
