@@ -4,69 +4,300 @@ import { displayMessage } from './ui.js';
 
 const textureLoader = new THREE.TextureLoader();
 
-// Add this function near the top of the file
-function createStarTexture() {
-    const canvasSize = 512; // Larger texture for better quality
+function createCyberpunkBallTexture() {
+    const canvasSize = 512;
     const canvas = document.createElement('canvas');
     canvas.width = canvasSize;
     canvas.height = canvasSize;
     const ctx = canvas.getContext('2d');
     
-    // Fill background with dark red
-    ctx.fillStyle = '#990000';
-    ctx.fillRect(0, 0, canvasSize, canvasSize);
-    
-    // Draw star
-    const centerX = canvasSize / 2;
-    const centerY = canvasSize / 2;
-    const outerRadius = canvasSize * 0.45;
-    const innerRadius = canvasSize * 0.18;
-    const spikes = 5;
-    
-    // Use a more defined star shape with better contrast
-    ctx.beginPath();
-    ctx.fillStyle = '#ffdd00'; // Bright yellow
-    
-    // Draw star points
-    for (let i = 0; i < spikes * 2; i++) {
-        const radius = i % 2 === 0 ? outerRadius : innerRadius;
-        const angle = (Math.PI / spikes) * i - Math.PI/2; // Start from top
-        const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
-        
-        if (i === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
+    // Animation properties to store in userData
+    const animationData = {
+        rings: [],
+        pulseSpeed: 0.05,
+        rotationSpeed: 0.02,
+        time: 0
+    };
+
+    // Create more neon rings with different properties using blue and purple
+    for (let i = 0; i < 6; i++) {  // Increased from 4 to 6 rings
+        animationData.rings.push({
+            radius: 0.25 + i * 0.12,  // More closely packed rings
+            color: i % 2 === 0 ? '#0088ff' : '#aa00ff', // Blue and purple alternating
+            phase: i * Math.PI / 3,  // More varied phases
+            thickness: 4 + i * 2
+        });
     }
     
-    ctx.closePath();
-    ctx.fill();
+    // Function to render the current frame
+    const renderFrame = (time) => {
+        // Clear canvas with dark background
+        ctx.fillStyle = '#000820';
+        ctx.fillRect(0, 0, canvasSize, canvasSize);
+        
+        const center = canvasSize / 2;
+        
+        // Draw more detailed net-like grid pattern
+        ctx.strokeStyle = '#0066aa';  // Medium blue for grid
+        ctx.lineWidth = 1;
+        
+        // Grid spacing - tighter for net effect
+        const gridSize = 16;  // Reduced from 24 to 16 for tighter grid
+        
+        // Horizontal grid lines
+        for (let i = 0; i < canvasSize; i += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(canvasSize, i);
+            ctx.stroke();
+        }
+        
+        // Vertical grid lines
+        for (let i = 0; i < canvasSize; i += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, canvasSize);
+            ctx.stroke();
+        }
+        
+        // Add diagonal grid lines for net effect
+        ctx.strokeStyle = '#6600aa'; // Purple for diagonals
+        
+        // Diagonal lines (top-left to bottom-right)
+        for (let i = -canvasSize; i < canvasSize; i += gridSize * 2) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i + canvasSize, canvasSize);
+            ctx.stroke();
+        }
+        
+        // Diagonal lines (top-right to bottom-left)
+        for (let i = 0; i < canvasSize * 2; i += gridSize * 2) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i - canvasSize, canvasSize);
+            ctx.stroke();
+        }
+        
+        // Add hexagonal patterns in the background
+        ctx.strokeStyle = '#005588';
+        ctx.lineWidth = 1.5;
+        const hexSize = gridSize * 4;
+        for (let x = 0; x < canvasSize; x += hexSize * 1.5) {
+            for (let y = 0; y < canvasSize; y += hexSize * 1.73) {
+                drawHexagon(ctx, x, y, hexSize);
+                drawHexagon(ctx, x + hexSize * 0.75, y + hexSize * 0.865, hexSize);
+            }
+        }
+        
+        // Draw main X pattern - thicker and more visible
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#00ccff';  // Bright blue for X
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(canvasSize, canvasSize);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(canvasSize, 0);
+        ctx.lineTo(0, canvasSize);
+        ctx.stroke();
+        
+        // Add secondary X pattern - rotated with animation
+        const rotatedX = time * 0.01;
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#ff00ff';  // Bright magenta for second X
+        
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(rotatedX);
+        ctx.beginPath();
+        ctx.moveTo(-center * 0.9, -center * 0.9);
+        ctx.lineTo(center * 0.9, center * 0.9);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(center * 0.9, -center * 0.9);
+        ctx.lineTo(-center * 0.9, center * 0.9);
+        ctx.stroke();
+        ctx.restore();
+        
+        // Add tertiary X pattern - different rotation
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#ffcc00';  // Gold for third X
+        
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(-rotatedX * 1.5);
+        ctx.beginPath();
+        ctx.moveTo(-center * 0.7, -center * 0.7);
+        ctx.lineTo(center * 0.7, center * 0.7);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(center * 0.7, -center * 0.7);
+        ctx.lineTo(-center * 0.7, center * 0.7);
+        ctx.stroke();
+        ctx.restore();
+        
+        // Draw animated neon rings
+        animationData.rings.forEach((ring) => {
+            // Calculate pulsating radius
+            const pulseFactor = 0.15 * Math.sin(time * animationData.pulseSpeed + ring.phase);
+            const currentRadius = (ring.radius + pulseFactor) * canvasSize;
+            
+            // Draw the ring
+            ctx.beginPath();
+            ctx.arc(center, center, currentRadius, 0, Math.PI * 2);
+            
+            // Create gradient for glow effect
+            const gradient = ctx.createRadialGradient(
+                center, center, currentRadius - ring.thickness,
+                center, center, currentRadius + ring.thickness
+            );
+            gradient.addColorStop(0, ring.color + '00'); // Transparent
+            gradient.addColorStop(0.5, ring.color + 'ff'); // Full color
+            gradient.addColorStop(1, ring.color + '00'); // Transparent
+            
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = ring.thickness;
+            ctx.stroke();
+        });
+        
+        // Draw intersecting circuitry lines
+        ctx.strokeStyle = '#00aaff'; // Bright blue
+        ctx.lineWidth = 2;
+        
+        // Draw circuit pattern that rotates
+        const rotation = time * 0.01;
+        for (let i = 0; i < 12; i++) { // Increased from 8 to 12 lines
+            const angle = (i / 12) * Math.PI * 2 + rotation;
+            const x1 = center + Math.cos(angle) * center * 0.8;
+            const y1 = center + Math.sin(angle) * center * 0.8;
+            const x2 = center + Math.cos(angle + Math.PI) * center * 0.8;
+            const y2 = center + Math.sin(angle + Math.PI) * center * 0.8;
+            
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            
+            // Add "nodes" at intersections
+            ctx.fillStyle = '#aa00ff'; // Purple for nodes
+            ctx.beginPath();
+            ctx.arc(x1, y1, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Add circular data paths
+        ctx.strokeStyle = '#22ccff';
+        ctx.lineWidth = 3;
+        
+        const dataCircles = 3;
+        for (let i = 0; i < dataCircles; i++) {
+            const radius = canvasSize * (0.2 + i * 0.15);
+            ctx.beginPath();
+            ctx.arc(center, center, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Add data points on circles
+            const points = 8 + i * 4;
+            for (let j = 0; j < points; j++) {
+                const pointAngle = (j / points) * Math.PI * 2 + rotation * (i + 1);
+                const px = center + Math.cos(pointAngle) * radius;
+                const py = center + Math.sin(pointAngle) * radius;
+                
+                ctx.fillStyle = j % 2 === 0 ? '#00ffff' : '#ff00ff';
+                ctx.beginPath();
+                ctx.arc(px, py, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Add digital readout rectangles
+        const readoutCount = 8;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < readoutCount; i++) {
+            const rectSize = 10 + Math.sin(time * 0.1 + i) * 5;
+            const rectX = center + Math.cos(i/readoutCount * Math.PI * 2) * center * 0.6;
+            const rectY = center + Math.sin(i/readoutCount * Math.PI * 2) * center * 0.6;
+            
+            ctx.strokeStyle = i % 2 === 0 ? '#00ffaa' : '#ff00aa';
+            ctx.strokeRect(rectX - rectSize/2, rectY - rectSize/2, rectSize, rectSize);
+            
+            // Fill with a pulsing color
+            const opacity = 0.5 + 0.5 * Math.sin(time * 0.2 + i);
+            ctx.fillStyle = `rgba(0, 255, 255, ${opacity})`;
+            ctx.fillRect(rectX - rectSize/2, rectY - rectSize/2, rectSize, rectSize);
+        }
+        
+        // Add digital noise effect
+        for (let i = 0; i < 80; i++) { // Increased from 50 to 80 particles
+            const x = Math.random() * canvasSize;
+            const y = Math.random() * canvasSize;
+            const size = 2 + Math.random() * 3;
+            // Alternate between blue and purple for the noise particles
+            ctx.fillStyle = Math.random() > 0.5 ? 
+                `rgba(0, 136, 255, ${Math.random() * 0.7})` : 
+                `rgba(170, 0, 255, ${Math.random() * 0.7})`;
+            ctx.fillRect(x, y, size, size);
+        }
+        
+        // Add binary code sprinkled around
+        ctx.font = '8px monospace';
+        ctx.fillStyle = '#00ffaa';
+        for (let i = 0; i < 15; i++) {
+            const x = Math.random() * canvasSize;
+            const y = Math.random() * canvasSize;
+            const binary = Math.random() > 0.5 ? '1' : '0';
+            ctx.fillText(binary, x, y);
+        }
+        
+        // Add central core
+        const coreGradient = ctx.createRadialGradient(
+            center, center, 0,
+            center, center, canvasSize * 0.15
+        );
+        coreGradient.addColorStop(0, '#ffffff');
+        coreGradient.addColorStop(0.2, '#00aaff'); // Bright blue
+        coreGradient.addColorStop(0.7, '#0044aa'); // Medium blue
+        coreGradient.addColorStop(1, '#aa00ff'); // Bright purple
+        
+        ctx.fillStyle = coreGradient;
+        ctx.beginPath();
+        ctx.arc(center, center, canvasSize * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+    };
     
-    // Add glow effect around the star
-    const gradient = ctx.createRadialGradient(
-        centerX, centerY, innerRadius,
-        centerX, centerY, outerRadius * 1.2
-    );
-    gradient.addColorStop(0, 'rgba(255, 255, 100, 0.8)');
-    gradient.addColorStop(0.5, 'rgba(255, 200, 50, 0.3)');
-    gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+    // Helper function to draw hexagon
+    function drawHexagon(ctx, x, y, size) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const hx = x + size * Math.cos(angle);
+            const hy = y + size * Math.sin(angle);
+            if (i === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+        ctx.stroke();
+    }
     
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, outerRadius * 1.2, 0, Math.PI * 2);
-    ctx.fill();
+    // Initial render
+    renderFrame(0);
     
-    // Add center highlight
-    ctx.beginPath();
-    ctx.fillStyle = '#ffffff'; 
-    ctx.arc(centerX, centerY, innerRadius * 0.8, 0, Math.PI * 2);
-    ctx.fill();
-    
+    // Create texture
     const texture = new THREE.CanvasTexture(canvas);
-    texture.anisotropy = 16; // Improve texture quality
+    texture.anisotropy = 16;
+    
+    // Store animation data for updates
+    texture.userData = {
+        canvas: canvas,
+        ctx: ctx,
+        renderFrame: renderFrame,
+        animationData: animationData
+    };
+    
     return texture;
 }
 
@@ -236,18 +467,24 @@ export function createPaddle() {
     state.scene.add(state.paddle);
 }
 
-// Create the ball
+// In the createBall function, modify the rotation-related code:
 export function createBall() {
     const ballGeometry = new THREE.SphereGeometry(constants.BALL_RADIUS, 32, 32);
     
-    // Create star texture with more contrast
-    const ballTexture = createStarTexture();
+    // Create cyberpunk texture for the ball
+    const ballTexture = createCyberpunkBallTexture();
+    
+    // Improve texture mapping for spherical geometry
+    ballTexture.mapping = THREE.EquirectangularMapping;
+    ballTexture.wrapS = THREE.RepeatWrapping;
+    ballTexture.wrapT = THREE.RepeatWrapping;
+    ballTexture.repeat.set(1, 1);
     
     // Create material with the texture - use emissive for better visibility
     const ballMaterial = new THREE.MeshStandardMaterial({ 
         color: 0xffffff,
-        emissive: 0xff3333,
-        emissiveIntensity: 0.3,
+        emissive: 0x0033ff,
+        emissiveIntensity: 0.4,
         map: ballTexture
     });
     
@@ -265,7 +502,7 @@ export function createBall() {
     );
     
     // Add a small light to the ball - increased intensity
-    const ballLight = new THREE.PointLight(0xff6666, 1.0, 10);
+    const ballLight = new THREE.PointLight(0x3366ff, 1.2, 10);
     ballLight.position.set(0, 0, 0);
     state.ball.add(ballLight);
     
@@ -313,151 +550,6 @@ function createCyberpunkPaddleTexture() {
     }
     
     return new THREE.CanvasTexture(canvas);
-}
-
-function createCyberpunkBallTexture() {
-    const canvasSize = 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
-    const ctx = canvas.getContext('2d');
-    
-    // Animation properties to store in userData
-    const animationData = {
-        rings: [],
-        pulseSpeed: 0.05,
-        rotationSpeed: 0.02,
-        time: 0
-    };
-
-    // Create 4 neon rings with different properties
-    for (let i = 0; i < 4; i++) {
-        animationData.rings.push({
-            radius: 0.3 + i * 0.15,
-            color: i % 2 === 0 ? '#00ffff' : '#ff00ff',
-            phase: i * Math.PI / 2,
-            thickness: 5 + i * 3
-        });
-    }
-    
-    // Function to render the current frame
-    const renderFrame = (time) => {
-        // Clear canvas with dark background
-        ctx.fillStyle = '#000820';
-        ctx.fillRect(0, 0, canvasSize, canvasSize);
-        
-        const center = canvasSize / 2;
-        
-        // Draw grid pattern
-        ctx.strokeStyle = '#103050';
-        ctx.lineWidth = 1;
-        
-        // Horizontal grid lines
-        for (let i = 0; i < canvasSize; i += 16) {
-            ctx.beginPath();
-            ctx.moveTo(0, i);
-            ctx.lineTo(canvasSize, i);
-            ctx.stroke();
-        }
-        
-        // Vertical grid lines
-        for (let i = 0; i < canvasSize; i += 16) {
-            ctx.beginPath();
-            ctx.moveTo(i, 0);
-            ctx.lineTo(i, canvasSize);
-            ctx.stroke();
-        }
-        
-        // Draw animated neon rings
-        animationData.rings.forEach((ring) => {
-            // Calculate pulsating radius
-            const pulseFactor = 0.15 * Math.sin(time * animationData.pulseSpeed + ring.phase);
-            const currentRadius = (ring.radius + pulseFactor) * canvasSize;
-            
-            // Draw the ring
-            ctx.beginPath();
-            ctx.arc(center, center, currentRadius, 0, Math.PI * 2);
-            
-            // Create gradient for glow effect
-            const gradient = ctx.createRadialGradient(
-                center, center, currentRadius - ring.thickness,
-                center, center, currentRadius + ring.thickness
-            );
-            gradient.addColorStop(0, ring.color + '00'); // Transparent
-            gradient.addColorStop(0.5, ring.color + 'ff'); // Full color
-            gradient.addColorStop(1, ring.color + '00'); // Transparent
-            
-            ctx.strokeStyle = gradient;
-            ctx.lineWidth = ring.thickness;
-            ctx.stroke();
-        });
-        
-        // Draw intersecting circuitry lines
-        ctx.strokeStyle = '#00ffaa';
-        ctx.lineWidth = 2;
-        
-        // Draw circuit pattern that rotates
-        const rotation = time * 0.01;
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2 + rotation;
-            const x1 = center + Math.cos(angle) * center * 0.8;
-            const y1 = center + Math.sin(angle) * center * 0.8;
-            const x2 = center + Math.cos(angle + Math.PI) * center * 0.8;
-            const y2 = center + Math.sin(angle + Math.PI) * center * 0.8;
-            
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-            
-            // Add "nodes" at intersections
-            ctx.fillStyle = '#00ffff';
-            ctx.beginPath();
-            ctx.arc(x1, y1, 5, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        
-        // Add digital noise effect
-        for (let i = 0; i < 50; i++) {
-            const x = Math.random() * canvasSize;
-            const y = Math.random() * canvasSize;
-            const size = 2 + Math.random() * 3;
-            ctx.fillStyle = `rgba(0, 255, 255, ${Math.random() * 0.7})`;
-            ctx.fillRect(x, y, size, size);
-        }
-        
-        // Add central core
-        const coreGradient = ctx.createRadialGradient(
-            center, center, 0,
-            center, center, canvasSize * 0.15
-        );
-        coreGradient.addColorStop(0, '#ffffff');
-        coreGradient.addColorStop(0.2, '#00ffff');
-        coreGradient.addColorStop(0.7, '#0080ff');
-        coreGradient.addColorStop(1, '#000080');
-        
-        ctx.fillStyle = coreGradient;
-        ctx.beginPath();
-        ctx.arc(center, center, canvasSize * 0.15, 0, Math.PI * 2);
-        ctx.fill();
-    };
-    
-    // Initial render
-    renderFrame(0);
-    
-    // Create texture
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.anisotropy = 16;
-    
-    // Store animation data for updates
-    texture.userData = {
-        canvas: canvas,
-        ctx: ctx,
-        renderFrame: renderFrame,
-        animationData: animationData
-    };
-    
-    return texture;
 }
 
 // Create a cyberpunk-themed brick texture
@@ -695,12 +787,23 @@ function updateBall() {
     state.ball.position.y += state.ballVelocity.y;
     state.ball.position.z += state.ballVelocity.z;
     
-    // Apply rotation for visual effect
-    state.ball.rotation.y += 0.05; // Use Y rotation for more noticeable spinning
+    // Apply physical rotation to ball mesh
+    state.ball.rotation.x += 0.01;
+    state.ball.rotation.y += 0.03; // Increased for more visible spinning
+    state.ball.rotation.z += 0.02;
     
-    // Animate texture by rotating UV coordinates - increased speed
+    // Animate texture - update time for the procedural texture
+    if (state.ball.userData.texture && state.ball.userData.texture.userData) {
+        state.ball.userData.texture.userData.animationData.time += 0.05;
+        state.ball.userData.texture.userData.renderFrame(state.ball.userData.texture.userData.animationData.time);
+        state.ball.userData.texture.needsUpdate = true;
+    }
+    
+    // Also apply UV rotation for extra animation effect
     if (state.ball.userData.texture) {
-        state.ball.userData.texture.rotation += 0.03;
+        state.ball.userData.texture.offset.x += 0.002;
+        state.ball.userData.texture.offset.y += 0.001;
+        state.ball.userData.texture.rotation += 0.005; // Gentle rotation of texture coordinates
         state.ball.userData.texture.needsUpdate = true;
     }
     
