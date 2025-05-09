@@ -67,7 +67,7 @@ export function setupLighting() {
     
     // Hemispheric light
     state.lights.hemispheric = new THREE.HemisphereLight(0x90c0ff, 0x802020, 1);
-    state.lights.hemispheric.position.set(0, constants.GAME_HEIGHT/2, 0);
+    state.lights.hemispheric.position.set(0, constants.GAME_HEIGHT/8, 0);
     
     // Add hemisphere light helper
     const hemisphereHelper = new THREE.HemisphereLightHelper(state.lights.hemispheric, 5);
