@@ -49,7 +49,7 @@ export const state = {
 
 // Constants for game dimensions
 export const constants = {
-    BALL_SPEED: 0.2,
+    BALL_SPEED: 0.4,
     GAME_WIDTH: 40,
     GAME_HEIGHT: 50,
     GAME_DEPTH: 40,

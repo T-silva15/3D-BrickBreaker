@@ -210,18 +210,26 @@ export function createPaddle() {
         constants.PADDLE_HEIGHT, 
         constants.PADDLE_DEPTH
     );
-    const paddleMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0x2277ff,
-        specular: 0x99ccff,
-        shininess: 30
+    
+    // Use the cyberpunk texture for the paddle
+    const paddleTexture = createCyberpunkPaddleTexture();
+    
+    const paddleMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x7722aa,
+        specular: 0xcc99ff,
+        shininess: 30,
+        map: paddleTexture,
+        emissive: 0x330066,
+        emissiveIntensity: 0.3
     });
+    
     state.paddle = new THREE.Mesh(paddleGeometry, paddleMaterial);
     state.paddle.position.y = -constants.GAME_HEIGHT/2 + constants.PADDLE_HEIGHT;
     state.paddle.castShadow = true;
     state.paddle.receiveShadow = true;
     
-    // Add a subtle glow effect
-    const paddleLight = new THREE.PointLight(0x3388ff, 0.6, 10);
+    // Add a subtle glow effect with increased intensity
+    const paddleLight = new THREE.PointLight(0xaa33ff, 1.0, 10);
     paddleLight.position.set(0, 1, 0);
     state.paddle.add(paddleLight);
     
@@ -232,14 +240,14 @@ export function createPaddle() {
 export function createBall() {
     const ballGeometry = new THREE.SphereGeometry(constants.BALL_RADIUS, 32, 32);
     
-    // Create cyberpunk ball texture
-    const ballTexture = createCyberpunkBallTexture();
+    // Create star texture with more contrast
+    const ballTexture = createStarTexture();
     
-    // Create material with the texture
+    // Create material with the texture - use emissive for better visibility
     const ballMaterial = new THREE.MeshStandardMaterial({ 
         color: 0xffffff,
-        emissive: 0x0066ff,
-        emissiveIntensity: 0.7,
+        emissive: 0xff3333,
+        emissiveIntensity: 0.3,
         map: ballTexture
     });
     
@@ -247,7 +255,7 @@ export function createBall() {
     
     // Store texture for animation
     state.ball.userData.texture = ballTexture;
-    state.ball.userData.animTime = 0;
+    state.ball.userData.rotationSpeed = 0.02;
     
     // Position the ball above the paddle
     state.ball.position.set(
@@ -257,7 +265,7 @@ export function createBall() {
     );
     
     // Add a small light to the ball - increased intensity
-    const ballLight = new THREE.PointLight(0x00ffff, 1.5, 10);
+    const ballLight = new THREE.PointLight(0xff6666, 1.0, 10);
     ballLight.position.set(0, 0, 0);
     state.ball.add(ballLight);
     
@@ -277,18 +285,18 @@ function createCyberpunkPaddleTexture() {
     canvas.height = canvasSize;
     const ctx = canvas.getContext('2d');
     
-    // Dark metallic background
-    ctx.fillStyle = '#1a1a2a';
+    // Dark metallic background with purple tone
+    ctx.fillStyle = '#1a0a2a';
     ctx.fillRect(0, 0, canvasSize, canvasSize);
     
-    // Add glowing neon edge
+    // Add glowing neon edge with magenta color
     const glowWidth = canvasSize * 0.05;
-    ctx.strokeStyle = '#00ffff';
+    ctx.strokeStyle = '#ff00ff';
     ctx.lineWidth = glowWidth;
     ctx.strokeRect(glowWidth/2, glowWidth/2, canvasSize - glowWidth, canvasSize - glowWidth);
     
-    // Add tech pattern
-    ctx.strokeStyle = '#0088ff';
+    // Collor for the inner part of the paddle
+    ctx.strokeStyle = '#aa33ff';
     ctx.lineWidth = 2;
     
     // Circuit-like pattern
@@ -603,16 +611,11 @@ function updateBall() {
     state.ball.position.z += state.ballVelocity.z;
     
     // Apply rotation for visual effect
-    state.ball.rotation.y += 0.05;
+    state.ball.rotation.y += 0.05; // Use Y rotation for more noticeable spinning
     
-    // Animate texture - update and redraw
-    if (state.ball.userData.texture && state.ball.userData.texture.userData) {
-        const textureData = state.ball.userData.texture.userData;
-        // Increment animation time
-        state.ball.userData.animTime = (state.ball.userData.animTime || 0) + 0.05;
-        // Render new frame
-        textureData.renderFrame(state.ball.userData.animTime);
-        // Update texture
+    // Animate texture by rotating UV coordinates - increased speed
+    if (state.ball.userData.texture) {
+        state.ball.userData.texture.rotation += 0.03;
         state.ball.userData.texture.needsUpdate = true;
     }
     
