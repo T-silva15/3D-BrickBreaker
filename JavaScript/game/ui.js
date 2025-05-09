@@ -34,12 +34,27 @@ export function createGameUI() {
     `;
     uiContainer.appendChild(gameInfo);
     
-    // Create control hints
+    // Create control hints with toggle functionality
+    const controlsHeader = document.createElement('div');
+    controlsHeader.style.marginTop = '10px';
+    controlsHeader.style.cursor = 'pointer';
+    controlsHeader.style.transition = 'color 0.3s';
+    controlsHeader.innerHTML = `
+        <div style="color: #aaffaa; margin-bottom: 5px;">
+            Controls: <span id="controls-toggle-icon" style="color: #00ffff;">[-]</span>
+        </div>
+    `;
+    uiContainer.appendChild(controlsHeader);
+    
+    // Control hints content
     const controlHints = document.createElement('div');
-    controlHints.style.marginTop = '10px';
+    controlHints.id = 'control-hints';
     controlHints.style.fontSize = '12px';
+    controlHints.style.transition = 'max-height 0.3s ease-out, opacity 0.3s';
+    controlHints.style.overflow = 'hidden';
+    controlHints.style.maxHeight = '200px'; // Start expanded
+    controlHints.style.opacity = '1';
     controlHints.innerHTML = `
-        <div style="color: #aaffaa; margin-bottom: 5px;">Controls:</div>
         <div>Movement: Mouse or WASD</div>
         <div>Toggle Mouse/Keyboard: M</div>
         <div>Change Camera: C</div>
@@ -51,19 +66,81 @@ export function createGameUI() {
     `;
     uiContainer.appendChild(controlHints);
     
+    // Add click event to toggle controls visibility
+    let controlsVisible = true;
+    controlsHeader.addEventListener('click', () => {
+        controlsVisible = !controlsVisible;
+        if (controlsVisible) {
+            controlHints.style.maxHeight = '200px';
+            controlHints.style.opacity = '1';
+            document.getElementById('controls-toggle-icon').textContent = '[-]';
+        } else {
+            controlHints.style.maxHeight = '0';
+            controlHints.style.opacity = '0';
+            document.getElementById('controls-toggle-icon').textContent = '[+]';
+        }
+    });
+    
+    // Add hover effect
+    controlsHeader.addEventListener('mouseenter', () => {
+        controlsHeader.style.color = '#00ffff';
+    });
+    
+    controlsHeader.addEventListener('mouseleave', () => {
+        controlsHeader.style.color = '#aaffaa';
+    });
+    
     // Create light indicators section
-    const lightIndicators = document.createElement('div');
-    lightIndicators.style.marginTop = '10px';
-    lightIndicators.innerHTML = `
-        <div style="color: #ffaaaa; margin-bottom: 5px;">Lights:</div>
-        <div id="light-indicators">
-            <div>Ambient (1): <span id="ambient-status" style="color: #88ff88;">ON</span></div>
-            <div>Directional (2): <span id="directional-status" style="color: #88ff88;">ON</span></div>
-            <div>Point (3): <span id="point-status" style="color: #88ff88;">ON</span></div>
-            <div>Spotlight (4): <span id="spotlight-status" style="color: #ff8888;">OFF</span></div>
-            <div>Hemispheric (5): <span id="hemispheric-status" style="color: #ff8888;">OFF</span></div>
-        </div>
-    `;
+const lightsHeader = document.createElement('div');
+lightsHeader.style.marginTop = '10px';
+lightsHeader.style.cursor = 'pointer';
+lightsHeader.style.transition = 'color 0.3s';
+lightsHeader.innerHTML = `
+    <div style="color: #ffaaaa; margin-bottom: 5px;">
+        Lights: <span id="lights-toggle-icon" style="color: #00ffff;">[-]</span>
+    </div>
+`;
+uiContainer.appendChild(lightsHeader);
+
+const lightIndicators = document.createElement('div');
+lightIndicators.id = 'light-indicators';
+lightIndicators.style.fontSize = '12px';
+lightIndicators.style.transition = 'max-height 0.3s ease-out, opacity 0.3s';
+lightIndicators.style.overflow = 'hidden';
+lightIndicators.style.maxHeight = '200px'; // Start expanded
+lightIndicators.style.opacity = '1';
+lightIndicators.innerHTML = `
+    <div>Ambient (1): <span id="ambient-status" style="color: #88ff88;">ON</span></div>
+    <div>Directional (2): <span id="directional-status" style="color: #88ff88;">ON</span></div>
+    <div>Point (3): <span id="point-status" style="color: #88ff88;">ON</span></div>
+    <div>Spotlight (4): <span id="spotlight-status" style="color: #ff8888;">OFF</span></div>
+    <div>Hemispheric (5): <span id="hemispheric-status" style="color: #ff8888;">OFF</span></div>
+`;
+uiContainer.appendChild(lightIndicators);
+
+    // Add click event to toggle lights visibility
+    let lightsVisible = true;
+    lightsHeader.addEventListener('click', () => {
+        lightsVisible = !lightsVisible;
+        if (lightsVisible) {
+            lightIndicators.style.maxHeight = '200px';
+            lightIndicators.style.opacity = '1';
+            document.getElementById('lights-toggle-icon').textContent = '[-]';
+        } else {
+            lightIndicators.style.maxHeight = '0';
+            lightIndicators.style.opacity = '0';
+            document.getElementById('lights-toggle-icon').textContent = '[+]';
+        }
+    });
+
+    // Add hover effect
+    lightsHeader.addEventListener('mouseenter', () => {
+        lightsHeader.style.color = '#ff8888';
+    });
+
+    lightsHeader.addEventListener('mouseleave', () => {
+        lightsHeader.style.color = '#ffaaaa';
+    });
     uiContainer.appendChild(lightIndicators);
     
     // Add score display

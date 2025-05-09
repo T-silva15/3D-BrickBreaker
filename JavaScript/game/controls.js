@@ -65,8 +65,10 @@ function handleKeyDown(event) {
             toggleCameraType();
             break;
         case 't':
-            // Toggle trajectory prediction
+            // Toggle trajectory prediction with debugging
+            console.log('Toggling trajectory');
             toggleTrajectory();
+            console.log('Trajectory visible:', state.showTrajectory);
             break;
         case 'r':
             // Reset/restart game
