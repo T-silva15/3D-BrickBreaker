@@ -460,16 +460,99 @@ function createCyberpunkBallTexture() {
     return texture;
 }
 
+// Create a cyberpunk-themed brick texture
+function createCyberpunkBrickTexture(color = '#aa33ff') {
+    const canvasSize = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    const ctx = canvas.getContext('2d');
+    
+    // Dark background with subtle gradient
+    const bgGradient = ctx.createLinearGradient(0, 0, canvasSize, canvasSize);
+    bgGradient.addColorStop(0, '#120a18');
+    bgGradient.addColorStop(1, '#1a0a2a');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+    
+    // Create tech circuit pattern
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = color;
+    
+    // Draw grid lines
+    const gridSize = canvasSize / 8;
+    for (let i = 0; i <= canvasSize; i += gridSize) {
+        // Horizontal lines
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(canvasSize, i);
+        ctx.stroke();
+        
+        // Vertical lines
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvasSize);
+        ctx.stroke();
+    }
+    
+    // Add circuit patterns
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#ff00ff';
+    
+    // Circuit paths
+    for (let i = 0; i < 3; i++) {
+        const yPos = gridSize * (2 + i * 2);
+        
+        ctx.beginPath();
+        ctx.moveTo(0, yPos);
+        ctx.lineTo(gridSize * 3, yPos);
+        ctx.lineTo(gridSize * 3, yPos + gridSize * 2);
+        ctx.lineTo(gridSize * 6, yPos + gridSize * 2);
+        ctx.lineTo(gridSize * 6, yPos);
+        ctx.lineTo(canvasSize, yPos);
+        ctx.stroke();
+    }
+    
+    // Add "nodes" at intersections
+    const nodeRadius = 6;
+    ctx.fillStyle = '#00ffff';
+    
+    for (let x = 0; x <= canvasSize; x += gridSize * 2) {
+        for (let y = 0; y <= canvasSize; y += gridSize * 2) {
+            ctx.beginPath();
+            ctx.arc(x, y, nodeRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    // Add glow effect to edges
+    const edgeWidth = canvasSize * 0.03;
+    const glowGradient = ctx.createLinearGradient(0, 0, canvasSize, canvasSize);
+    glowGradient.addColorStop(0, '#ff00ff66');
+    glowGradient.addColorStop(0.5, '#00ffff44');
+    glowGradient.addColorStop(1, '#ff00ff66');
+    
+    ctx.strokeStyle = glowGradient;
+    ctx.lineWidth = edgeWidth;
+    ctx.strokeRect(edgeWidth/2, edgeWidth/2, canvasSize - edgeWidth, canvasSize - edgeWidth);
+    
+    // Return the texture
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 16;
+    return texture;
+}
+
 // Create the bricks
 export function createBricks() {
     // Clear existing bricks
     state.bricks.forEach(brick => state.scene.remove(brick));
     state.bricks = [];
     
-    // Load brick textures
+    // Create cyberpunk brick textures with different color variants
     const brickTextures = [
-        textureLoader.load('https://threejs.org/examples/textures/brick_diffuse.jpg'),
-        textureLoader.load('https://threejs.org/examples/textures/brick_bump.jpg')
+        createCyberpunkBrickTexture('#ff00ff'), // Magenta
+        createCyberpunkBrickTexture('#00ffff'), // Cyan
+        createCyberpunkBrickTexture('#ffcc00')  // Gold
     ];
     
     // Configure brick layout based on level
@@ -520,22 +603,24 @@ export function createBricks() {
                     constants.BRICK_DEPTH
                 );
                 
-                // Determine brick color based on layer
-                let color;
-                if (layer === 0) {
-                    color = (row + col) % 2 === 0 ? 0xff8844 : 0xffaa66; // Orange
-                } else if (layer === 1) {
-                    color = (row + col) % 2 === 0 ? 0x44ff88 : 0x66ffaa; // Green
-                } else {
-                    color = (row + col) % 2 === 0 ? 0x8844ff : 0xaa66ff; // Purple
+                // Determine brick color and texture based on layer
+                let textureIndex = layer % brickTextures.length;
+                let emissiveColor;
+                
+                // Map color to emissive for each texture
+                switch(textureIndex) {
+                    case 0: emissiveColor = new THREE.Color(0x330033); break; // Dim magenta
+                    case 1: emissiveColor = new THREE.Color(0x003333); break; // Dim cyan
+                    case 2: emissiveColor = new THREE.Color(0x332200); break; // Dim gold
                 }
                 
                 const brickMaterial = new THREE.MeshPhongMaterial({ 
-                    color: color,
+                    color: 0xffffff, // Use white as base and let texture provide color
                     specular: 0xffffff,
                     shininess: 50,
-                    map: brickTextures[0],
-                    bumpMap: brickTextures[1]
+                    map: brickTextures[textureIndex],
+                    emissive: emissiveColor,
+                    emissiveIntensity: 0.5
                 });
                 
                 const brick = new THREE.Mesh(brickGeometry, brickMaterial);
