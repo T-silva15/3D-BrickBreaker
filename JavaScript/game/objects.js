@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { state, constants, resetGame, startGame } from './game.js';
+import { state, constants } from './game.js';
+import { applyBarrier, applyExplosiveBall, updatePowerups,    applyMultiBall ,createPowerUp, POWERUP_TYPE, applyPaddleSizeUp, applyPaddleDoubleSize } from './powerups.js';
+
 import { displayMessage } from './ui.js';
 
 const textureLoader = new THREE.TextureLoader();
@@ -770,6 +772,7 @@ export function resetBall() {
 export function updateObjects() {
     // Update paddle position
     updatePaddle();
+    updatePowerups();
     
     // Update ball physics
     if (state.gameStarted && !state.levelComplete) {
@@ -811,18 +814,77 @@ function updateBall() {
     handleBoundaryCollisions();
     
     // Check for game over (ball fell)
-    if (state.ball.position.y < -constants.GAME_HEIGHT/2) {
-        state.gameOver = true;
-        displayMessage("Game Over", "Click to restart");
-        resetBall();
-        return;
-    }
     
     // Check paddle collision
     handlePaddleCollision();
     
     // Check brick collisions
     checkBrickCollisions();
+    if (state.extraBalls) {
+        for (let i = state.extraBalls.length - 1; i >= 0; i--) {
+            const extraBall = state.extraBalls[i];
+            
+            // Update position
+            extraBall.position.add(extraBall.userData.velocity);
+
+            // Handle boundary collisions for extra ball
+            handleExtraBallBoundaries(extraBall, i);
+            
+            // Handle paddle collision
+            handleExtraBallPaddleCollision(extraBall);
+            
+            // Handle brick collisions
+            handleExtraBallBrickCollisions(extraBall);
+        }
+    }
+if (state.ball.position.y < -constants.GAME_HEIGHT/2) {
+        if (state.barrier) {
+            // Bounce off barrier instead of game over
+            state.ballVelocity.y = Math.abs(state.ballVelocity.y); // Make ball go up
+            state.ball.position.y = -constants.GAME_HEIGHT/2 + constants.BALL_RADIUS; // Place ball above barrier
+        } else {
+            // Normal game over condition
+            state.gameOver = true;
+            displayMessage("Game Over", "Click to restart");
+            resetBall();
+        }
+    }
+}
+
+function handleExtraBallBoundaries(ball, index) {
+    // X boundaries (left/right walls)
+    if (ball.position.x > constants.GAME_WIDTH/2 - constants.BALL_RADIUS || 
+        ball.position.x < -constants.GAME_WIDTH/2 + constants.BALL_RADIUS) {
+        ball.userData.velocity.x *= -1;
+    }
+    
+    // Y boundaries (top)
+    if (ball.position.y > constants.GAME_HEIGHT/2 - constants.BALL_RADIUS) {
+        ball.userData.velocity.y *= -1;
+    }
+    
+    // Remove ball if it goes below paddle (but don't end game)
+    if (ball.position.y < -constants.GAME_HEIGHT/2) {
+        state.scene.remove(ball);
+        state.extraBalls.splice(index, 1);
+    }
+    
+    // Z boundaries (back/front walls)
+    if (ball.position.z < -constants.GAME_DEPTH/2 + constants.BALL_RADIUS || 
+        ball.position.z > constants.GAME_DEPTH/2 - constants.BALL_RADIUS) {
+        ball.userData.velocity.z *= -1;
+    }
+    // Check barrier collision
+    if (ball.position.y < -constants.GAME_HEIGHT/2) {
+        if (state.barrier) {
+            // Bounce off barrier
+            ball.userData.velocity.y = Math.abs(ball.userData.velocity.y);
+            ball.position.y = -constants.GAME_HEIGHT/2 + constants.BALL_RADIUS;
+        } else {
+            state.scene.remove(ball);
+            state.extraBalls.splice(index, 1);
+        }
+    }
 }
 
 // Handle ball collisions with boundaries
@@ -956,11 +1018,59 @@ function handleBrickCollision(brick, brickBox) {
         // Just fade the brick a bit
         brick.material.opacity = 0.7;
     }
+
+    if (state.ball.userData.explosive) {
+        // Get all bricks within radius
+        const explosionRadius = constants.BRICK_WIDTH * 2;
+        const brickCenter = new THREE.Vector3();
+        brickBox.getCenter(brickCenter);
+
+        state.bricks.forEach(nearbyBrick => {
+            if (nearbyBrick.userData.active) {
+                const nearbyCenter = new THREE.Vector3();
+                new THREE.Box3().setFromObject(nearbyBrick).getCenter(nearbyCenter);
+                
+                if (brickCenter.distanceTo(nearbyCenter) <= explosionRadius) {
+                    // Add score for each brick destroyed
+                    state.score += nearbyBrick.userData.points;
+                    deactivateBrick(nearbyBrick);
+                }
+            }
+        });
+    } else {
+        // Normal brick collision
+        state.score += brick.userData.points;
+        brick.userData.hits--;
+        if (brick.userData.hits <= 0) {
+            deactivateBrick(brick);
+        } else {
+            brick.material.opacity = 0.7;
+        }
+    }
 }
 
 // Deactivate a brick when destroyed
+// Modify the deactivateBrick function
 function deactivateBrick(brick) {
     brick.userData.active = false;
+    
+    // chance to spawn a powerup
+    if (Math.random() < 0.25) {
+        // Randomly choose powerup type
+        const powerupTypes = [
+            POWERUP_TYPE.PADDLE_DOUBLE_SIZE,
+            POWERUP_TYPE.MULTI_BALL,
+            POWERUP_TYPE.EXPLOSIVE_BALL,
+            POWERUP_TYPE.BARRIER
+        ];
+        const randomType = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+        
+        const powerUp = createPowerUp(brick.position.clone(), randomType);
+        powerUp.userData.velocity = new THREE.Vector3(0, -0.05, 0); // Falling speed
+        state.powerups = state.powerups || []; // Initialize powerups array if needed
+        state.powerups.push(powerUp);
+        state.scene.add(powerUp);
+    }
     
     // Add destruction animation
     animateBrickDestruction(brick);
@@ -1029,6 +1139,43 @@ function updatePaddle() {
             state.paddle.position.z += moveSpeed;
         }
     }
+
+    if (state.powerups && state.powerups.length > 0) {
+        const paddleBox = new THREE.Box3().setFromObject(state.paddle);
+        
+        for (let i = state.powerups.length - 1; i >= 0; i--) {
+            const powerup = state.powerups[i];
+            
+            // Update powerup position (falling)
+            powerup.position.add(powerup.userData.velocity);
+            
+            // Check if powerup is below game area
+            if (powerup.position.y < -constants.GAME_HEIGHT/2) {
+                state.scene.remove(powerup);
+                state.powerups.splice(i, 1);
+                continue;
+            }
+            
+            // Check collision with paddle
+            const powerupBox = new THREE.Box3().setFromObject(powerup);
+            if (powerupBox.intersectsBox(paddleBox)) {
+                // Apply powerup effect
+    if (powerup.userData.type === POWERUP_TYPE.PADDLE_DOUBLE_SIZE) {
+        applyPaddleDoubleSize();
+    } else if (powerup.userData.type === POWERUP_TYPE.MULTI_BALL) {
+        applyMultiBall();
+    } else if (powerup.userData.type === POWERUP_TYPE.EXPLOSIVE_BALL) {
+        applyExplosiveBall();
+    } else if (powerup.userData.type === POWERUP_TYPE.BARRIER) {
+        applyBarrier();
+    }
+                
+                // Remove powerup
+                state.scene.remove(powerup);
+                state.powerups.splice(i, 1);
+            }
+        }
+    }
     
     // Constrain paddle to game boundaries
     const paddleHalfWidth = constants.PADDLE_WIDTH / 2;
@@ -1051,6 +1198,80 @@ function updatePaddle() {
         // Tilt based on keyboard input
         state.paddle.rotation.z = ((state.keys.right ? -1 : 0) + (state.keys.left ? 1 : 0)) * tiltFactor;
         state.paddle.rotation.x = ((state.keys.up ? -1 : 0) + (state.keys.down ? 1 : 0)) * tiltFactor;
+    }
+}
+
+
+function handleExtraBallPaddleCollision(ball) {
+    if (ball.position.y <= state.paddle.position.y + constants.PADDLE_HEIGHT/2 + constants.BALL_RADIUS && 
+        ball.position.y >= state.paddle.position.y - constants.BALL_RADIUS &&
+        ball.position.x >= state.paddle.position.x - constants.PADDLE_WIDTH/2 - constants.BALL_RADIUS &&
+        ball.position.x <= state.paddle.position.x + constants.PADDLE_WIDTH/2 + constants.BALL_RADIUS &&
+        ball.position.z >= state.paddle.position.z - constants.PADDLE_DEPTH/2 - constants.BALL_RADIUS &&
+        ball.position.z <= state.paddle.position.z + constants.PADDLE_DEPTH/2 + constants.BALL_RADIUS) {
+        
+        // Calculate impact position relative to paddle center
+        const paddleImpactX = (ball.position.x - state.paddle.position.x) / (constants.PADDLE_WIDTH/2);
+        const paddleImpactZ = (ball.position.z - state.paddle.position.z) / (constants.PADDLE_DEPTH/2);
+        
+        // Determine if hit top of paddle
+        const hitTop = ball.position.y > state.paddle.position.y;
+        
+        if (hitTop) {
+            // Bounce off the top
+            ball.userData.velocity.y = Math.abs(ball.userData.velocity.y);
+            
+            // Add influence from paddle impact position
+            ball.userData.velocity.x += paddleImpactX * 0.2;
+            ball.userData.velocity.z += paddleImpactZ * 0.2;
+        } else {
+            // Hit side of paddle
+            if (Math.abs(paddleImpactX) > Math.abs(paddleImpactZ)) {
+                // Hit left or right side
+                ball.userData.velocity.x = Math.sign(paddleImpactX) * Math.abs(ball.userData.velocity.x);
+            } else {
+                // Hit front or back
+                ball.userData.velocity.z = Math.sign(paddleImpactZ) * Math.abs(ball.userData.velocity.z);
+            }
+        }
+        
+        // Normalize velocity to maintain constant speed
+        ball.userData.velocity.normalize().multiplyScalar(constants.BALL_SPEED);
+    }
+}
+
+function handleExtraBallBrickCollisions(ball) {
+    const ballSphere = new THREE.Sphere(ball.position, constants.BALL_RADIUS);
+    
+    for (let i = 0; i < state.bricks.length; i++) {
+        const brick = state.bricks[i];
+        
+        if (!brick.userData.active) continue;
+        
+        const brickBox = new THREE.Box3().setFromObject(brick);
+        
+        if (ballSphere.intersectsBox(brickBox)) {
+            handleBrickCollision(brick, brickBox);
+            
+            // Calculate bounce direction
+            const brickCenter = new THREE.Vector3();
+            brickBox.getCenter(brickCenter);
+            
+            // Determine which side was hit
+            const dx = Math.abs(ball.position.x - brickCenter.x);
+            const dy = Math.abs(ball.position.y - brickCenter.y);
+            const dz = Math.abs(ball.position.z - brickCenter.z);
+            
+            if (dx > dy && dx > dz) {
+                ball.userData.velocity.x *= -1;
+            } else if (dy > dx && dy > dz) {
+                ball.userData.velocity.y *= -1;
+            } else {
+                ball.userData.velocity.z *= -1;
+            }
+            
+            break;
+        }
     }
 }
 
