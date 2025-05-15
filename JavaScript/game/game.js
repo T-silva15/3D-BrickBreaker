@@ -11,6 +11,7 @@ export const state = {
     levelComplete: false,
     showHelpers: false,
     showTrajectory: true,
+    powerups: [],
     score: 0,
     level: 1,
     currentCameraIndex: 0,
@@ -23,7 +24,8 @@ export const state = {
         left: false,
         right: false,
         up: false,
-        down: false
+        down: false,
+        m: false
     },
     mousePosition: { x: 0, z: 0 },
     useMouse: true,
