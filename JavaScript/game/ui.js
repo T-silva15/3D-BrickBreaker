@@ -305,3 +305,49 @@ export function addDebugInfo() {
         }
     });
 }
+
+export function updateLivesDisplay() {
+    const livesElement = document.getElementById('game-lives');
+    if (livesElement) {
+        livesElement.textContent = `Vidas: ${state.lives}`;
+    } else {
+        // If lives element doesn't exist yet, create it
+        const livesDisplay = document.createElement('div');
+        livesDisplay.id = 'game-lives';
+        livesDisplay.className = 'game-info';
+        livesDisplay.style.cssText = `
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+            user-select: none;
+        `;
+        livesDisplay.textContent = `Vidas: ${state.lives}`;
+        document.body.appendChild(livesDisplay);
+    }
+}
+
+export function updateScoreDisplay() {
+    const scoreValue = document.getElementById('score-value');
+    if (scoreValue) {
+        scoreValue.textContent = state.score;
+    } else {
+        // If score element doesn't exist in main UI, create a standalone score display
+        const scoreDisplay = document.createElement('div');
+        scoreDisplay.id = 'score-display';
+        scoreDisplay.className = 'game-info';
+        scoreDisplay.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+            user-select: none;
+        `;
+        scoreDisplay.innerHTML = `Pontuação: <span id="score-value">${state.score}</span>`;
+        document.body.appendChild(scoreDisplay);
+    }
+}
