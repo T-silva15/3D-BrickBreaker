@@ -85,7 +85,10 @@ function startLevel(levelIndex) {
     const backBtn = document.createElement('button');
     backBtn.id = 'back-to-menu';
     backBtn.textContent = 'Menu';
-    backBtn.addEventListener('click', showMainMenu);
+    backBtn.addEventListener('click', () => {
+        // Simply reload the page to return to the main menu
+        window.location.reload();
+    });
     document.body.appendChild(backBtn);
     
     // Add pause button

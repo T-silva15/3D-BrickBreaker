@@ -98,6 +98,9 @@ export function initGame() {
         
         // Create UI
         createGameUI();
+        
+        // Initialize menu functionality
+        setupMenuButton();
     
         // Setup input handlers
         setupInputListeners();
@@ -305,4 +308,17 @@ function toggleCameraType() {
     state.currentCameraIndex = (state.currentCameraIndex + 1) % state.cameras.length;
     state.camera = state.cameras[state.currentCameraIndex];
     console.log("Switched to camera:", state.currentCameraIndex);
+}
+
+// Simplified menu button implementation
+function setupMenuButton() {
+    const menuButton = document.getElementById('menu-button');
+    if (menuButton) {
+        menuButton.addEventListener('click', () => {
+            // Simply refresh the page to restart the game/open menu
+            window.location.reload();
+        });
+    } else {
+        console.warn("Menu button not found in the DOM");
+    }
 }
