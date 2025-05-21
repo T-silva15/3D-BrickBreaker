@@ -325,3 +325,120 @@ export function applyBarrier() {
         }, 15000);
     }
 }
+
+/**
+ * Creates a fire aura effect around an object
+ * @param {THREE.Object3D} targetObject - The object to apply the fire aura to
+ * @param {Object} options - Configuration options
+ */
+export function createFireAura(targetObject, options = {}) {
+    const defaults = {
+        particleCount: 50,
+        color: 0xff5500,
+        secondaryColor: 0xffaa00,
+        size: 0.15,
+        lifetime: 1000,
+        speed: 0.02,
+        radius: 1.2
+    };
+    
+    // Merge defaults with provided options
+    const config = { ...defaults, ...options };
+    
+    // Create particles container
+    const aura = new THREE.Group();
+    aura.name = 'fireAura';
+    
+    // Create particles
+    for (let i = 0; i < config.particleCount; i++) {
+        // Alternate between primary and secondary colors
+        const material = new THREE.MeshBasicMaterial({
+            color: i % 2 === 0 ? config.color : config.secondaryColor,
+            transparent: true,
+            opacity: 0.7
+        });
+        
+        const particle = new THREE.Mesh(
+            new THREE.SphereGeometry(config.size * (0.5 + Math.random() * 0.5), 8, 8),
+            material
+        );
+        
+        // Random position around the target
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.random() * Math.PI;
+        const radius = config.radius * (0.8 + Math.random() * 0.4);
+        
+        particle.position.set(
+            radius * Math.sin(phi) * Math.cos(theta),
+            radius * Math.sin(phi) * Math.sin(theta),
+            radius * Math.cos(phi)
+        );
+        
+        // Set particle metadata
+        particle.userData = {
+            velocity: new THREE.Vector3(
+                (Math.random() - 0.5) * config.speed,
+                (Math.random() * 0.5 + 0.5) * config.speed, // Mostly upward
+                (Math.random() - 0.5) * config.speed
+            ),
+            lifetime: config.lifetime,
+            age: 0,
+            initialOpacity: material.opacity
+        };
+        
+        aura.add(particle);
+    }
+    
+    // Add the aura to the target object
+    targetObject.add(aura);
+    
+    // Attach update method to the aura for animation
+    aura.update = function(deltaTime) {
+        this.children.forEach(particle => {
+            // Move particle
+            particle.position.add(particle.userData.velocity);
+            
+            // Age particle
+            particle.userData.age += deltaTime;
+            
+            // Fade out based on age
+            const lifeRatio = particle.userData.age / particle.userData.lifetime;
+            if (particle.material) {
+                particle.material.opacity = particle.userData.initialOpacity * (1 - lifeRatio);
+            }
+            
+            // Shrink particle
+            particle.scale.multiplyScalar(0.99);
+            
+            // Reset particle if it's too old
+            if (particle.userData.age >= particle.userData.lifetime) {
+                // Reset position
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const radius = config.radius * (0.8 + Math.random() * 0.2);
+                
+                particle.position.set(
+                    radius * Math.sin(phi) * Math.cos(theta),
+                    radius * Math.sin(phi) * Math.sin(theta),
+                    radius * Math.cos(phi)
+                );
+                
+                // Reset parameters
+                particle.scale.set(1, 1, 1);
+                particle.userData.age = 0;
+                particle.userData.velocity.set(
+                    (Math.random() - 0.5) * config.speed,
+                    (Math.random() * 0.5 + 0.5) * config.speed,
+                    (Math.random() - 0.5) * config.speed
+                );
+                
+                if (particle.material) {
+                    particle.material.opacity = particle.userData.initialOpacity;
+                }
+            }
+        });
+    };
+    
+    // Return the aura for further manipulation
+    return aura;
+}

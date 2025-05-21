@@ -56,7 +56,6 @@ export function createGameUI() {
     controlHints.style.opacity = '1';
     controlHints.innerHTML = `
         <div>Movement: Mouse or WASD</div>
-        <div>Toggle Mouse/Keyboard: M</div>
         <div>Change Camera: C</div>
         <div>Toggle Orthographic: O</div>
         <div>Toggle Lights: 1-5</div>
@@ -291,7 +290,7 @@ export function addDebugInfo() {
             Level Complete: ${state.levelComplete}<br>
             Game Over: ${state.gameOver}<br>
             Active Bricks: ${state.bricks.filter(b => b.userData.active).length}<br>
-            Controls: ${state.useMouse ? 'Mouse' : 'Keyboard'}<br>
+            Controls: Keyboard<br>
         `;
         requestAnimationFrame(updateDebugInfo);
     }

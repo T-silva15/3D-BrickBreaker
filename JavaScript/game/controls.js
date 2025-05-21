@@ -9,8 +9,6 @@ export function setupInputListeners() {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     
-    // Mouse movement
-    document.addEventListener('mousemove', handleMouseMove);
 }
 
 // Handle keydown events
@@ -31,11 +29,6 @@ function handleKeyDown(event) {
         case 'ArrowDown':
         case 's':
             state.keys.down = true;
-            break;
-        case 'm':
-            // Toggle between mouse and keyboard control
-            state.useMouse = !state.useMouse;
-            console.log(`Using ${state.useMouse ? 'mouse' : 'keyboard'} control`);
             break;
         case 'c':
             // Switch camera

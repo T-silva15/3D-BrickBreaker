@@ -1,10 +1,19 @@
 import * as THREE from 'three';
 import { state, constants } from './game.js';
-import { applyBarrier, applyExplosiveBall, updatePowerups,    applyMultiBall ,createPowerUp, POWERUP_TYPE, applyPaddleSizeUp, applyPaddleDoubleSize } from './powerups.js';
+import {     createFireAura, applyBarrier, applyExplosiveBall, updatePowerups,    applyMultiBall ,createPowerUp, POWERUP_TYPE, applyPaddleSizeUp, applyPaddleDoubleSize } from './powerups.js';
 
 import { displayMessage } from './ui.js';
-
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+const fontLoader = new FontLoader();
 const textureLoader = new THREE.TextureLoader();
+let cachedFont = null;
+fontLoader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', function(font) {
+    cachedFont = font;
+});
+
+
+let lastHitTime = 0; 
 
 function createCyberpunkBallTexture() {
     const canvasSize = 512;
@@ -749,9 +758,24 @@ export function createBricks() {
 // Reset the ball position
 export function resetBall() {
     state.gameStarted = false;
+    state.gameInAnimation = false; // Add this line to ensure animation state is reset
+    state.gameOver = false; // Add this to reset game over state
+    
+    // Reset ball properties immediately
+    state.ball.visible = true;
+    state.ball.scale.set(1, 1, 1);
+    
+    // Reset ball position
     state.ball.position.set(
         0, 
         -constants.GAME_HEIGHT/2 + constants.PADDLE_HEIGHT + constants.BALL_RADIUS * 2, 
+        0
+    );
+    
+    // Reset paddle position
+    state.paddle.position.set(
+        0,
+        -constants.GAME_HEIGHT/2 + constants.PADDLE_HEIGHT,
         0
     );
     
@@ -762,10 +786,31 @@ export function resetBall() {
         (Math.random() - 0.5) * 0.1
     );
     
+    // Remove fire aura
+    if (state.ball.userData.fireAura) {
+        state.ball.remove(state.ball.userData.fireAura);
+        state.ball.userData.fireAura = null;
+    }
+
+    // Remove all active powerups from scene
+    if (state.powerups) {
+        state.powerups.forEach(powerup => {
+            state.scene.remove(powerup);
+        });
+        state.powerups = [];
+    }
+
+    // Remove all extra balls
+    if (state.extraBalls) {
+        state.extraBalls.forEach(ball => {
+            state.scene.remove(ball);
+        });
+        state.extraBalls = [];
+    }
+    
+    state.paddleHitCount = 0;
     state.ballVelocity.normalize().multiplyScalar(constants.BALL_SPEED);
     
-    // Add click event listener to restart
-    document.addEventListener('click', startGame, { once: true });
 }
 
 // Update all game objects
@@ -792,7 +837,7 @@ function updateBall() {
     
     // Apply physical rotation to ball mesh
     state.ball.rotation.x += 0.01;
-    state.ball.rotation.y += 0.03; // Increased for more visible spinning
+    state.ball.rotation.y += 0.03;
     state.ball.rotation.z += 0.02;
     
     // Animate texture - update time for the procedural texture
@@ -806,47 +851,48 @@ function updateBall() {
     if (state.ball.userData.texture) {
         state.ball.userData.texture.offset.x += 0.002;
         state.ball.userData.texture.offset.y += 0.001;
-        state.ball.userData.texture.rotation += 0.005; // Gentle rotation of texture coordinates
+        state.ball.userData.texture.rotation += 0.005;
         state.ball.userData.texture.needsUpdate = true;
+    }
+
+    // Update fire aura if it exists
+    if (state.ball.userData.fireAura) {
+        state.ball.userData.fireAura.userData.update();
     }
     
     // Handle boundary collisions
     handleBoundaryCollisions();
-    
-    // Check for game over (ball fell)
     
     // Check paddle collision
     handlePaddleCollision();
     
     // Check brick collisions
     checkBrickCollisions();
+
+    // Update extra balls if they exist
     if (state.extraBalls) {
         for (let i = state.extraBalls.length - 1; i >= 0; i--) {
             const extraBall = state.extraBalls[i];
-            
-            // Update position
             extraBall.position.add(extraBall.userData.velocity);
-
-            // Handle boundary collisions for extra ball
             handleExtraBallBoundaries(extraBall, i);
-            
-            // Handle paddle collision
             handleExtraBallPaddleCollision(extraBall);
-            
-            // Handle brick collisions
             handleExtraBallBrickCollisions(extraBall);
         }
     }
-if (state.ball.position.y < -constants.GAME_HEIGHT/2) {
+
+    // Check for game over (ball fell)
+    if (state.ball.position.y < -constants.GAME_HEIGHT/2) {
         if (state.barrier) {
             // Bounce off barrier instead of game over
-            state.ballVelocity.y = Math.abs(state.ballVelocity.y); // Make ball go up
-            state.ball.position.y = -constants.GAME_HEIGHT/2 + constants.BALL_RADIUS; // Place ball above barrier
+            state.ballVelocity.y = Math.abs(state.ballVelocity.y);
+            state.ball.position.y = -constants.GAME_HEIGHT/2 + constants.BALL_RADIUS;
         } else {
-            // Normal game over condition
+            // Game over with animation
             state.gameOver = true;
-            displayMessage("Game Over", "Click to restart");
+            
+            state.ballVelocity.set(0, 0, 0);
             resetBall();
+            return;
         }
     }
 }
@@ -889,21 +935,35 @@ function handleExtraBallBoundaries(ball, index) {
 
 // Handle ball collisions with boundaries
 function handleBoundaryCollisions() {
+    const position = state.ball.position.clone();
+    
     // X boundaries (left/right walls)
-    if (state.ball.position.x > constants.GAME_WIDTH/2 - constants.BALL_RADIUS || 
-        state.ball.position.x < -constants.GAME_WIDTH/2 + constants.BALL_RADIUS) {
+    if (position.x > constants.GAME_WIDTH/2 - constants.BALL_RADIUS) {
         state.ballVelocity.x *= -1;
+        position.x = constants.GAME_WIDTH/2 - constants.BALL_RADIUS;
+        createWallCollisionEffect(position, new THREE.Vector3(-1, 0, 0));
+    } else if (position.x < -constants.GAME_WIDTH/2 + constants.BALL_RADIUS) {
+        state.ballVelocity.x *= -1;
+        position.x = -constants.GAME_WIDTH/2 + constants.BALL_RADIUS;
+        createWallCollisionEffect(position, new THREE.Vector3(1, 0, 0));
     }
     
     // Y boundaries (top)
-    if (state.ball.position.y > constants.GAME_HEIGHT/2 - constants.BALL_RADIUS) {
+    if (position.y > constants.GAME_HEIGHT/2 - constants.BALL_RADIUS) {
         state.ballVelocity.y *= -1;
+        position.y = constants.GAME_HEIGHT/2 - constants.BALL_RADIUS;
+        createWallCollisionEffect(position, new THREE.Vector3(0, -1, 0));
     }
     
     // Z boundaries (back/front walls)
-    if (state.ball.position.z < -constants.GAME_DEPTH/2 + constants.BALL_RADIUS || 
-        state.ball.position.z > constants.GAME_DEPTH/2 - constants.BALL_RADIUS) {
+    if (position.z < -constants.GAME_DEPTH/2 + constants.BALL_RADIUS) {
         state.ballVelocity.z *= -1;
+        position.z = -constants.GAME_DEPTH/2 + constants.BALL_RADIUS;
+        createWallCollisionEffect(position, new THREE.Vector3(0, 0, 1));
+    } else if (position.z > constants.GAME_DEPTH/2 - constants.BALL_RADIUS) {
+        state.ballVelocity.z *= -1;
+        position.z = constants.GAME_DEPTH/2 - constants.BALL_RADIUS;
+        createWallCollisionEffect(position, new THREE.Vector3(0, 0, -1));
     }
 }
 
@@ -919,6 +979,28 @@ function handlePaddleCollision() {
         // Calculate impact position on paddle
         const paddleImpactX = (state.ball.position.x - state.paddle.position.x) / (constants.PADDLE_WIDTH/2);
         const paddleImpactZ = (state.ball.position.z - state.paddle.position.z) / (constants.PADDLE_DEPTH/2);
+    
+
+        const currentTime = Date.now();
+        const timeSinceLastHit = currentTime - lastHitTime;
+        // Check for consecutive hits and create fire aura
+
+
+        if (timeSinceLastHit >= 1000) {
+            state.paddleHitCount = (state.paddleHitCount || 0) + 1;
+            lastHitTime = currentTime;
+            
+            // Display streak message at milestones
+            if (state.paddleHitCount % 5 === 0 && state.paddleHitCount <= 25) {
+                displayHitStreak(state.paddleHitCount);
+            }
+            if (state.paddleHitCount >= 2 && !state.ball.userData.fireAura) {
+                const fireAura = createFireAura();
+                state.ball.add(fireAura);
+                state.ball.userData.fireAura = fireAura;
+            }
+        }
+
         
         // Determine hit location
         const hitTop = state.ball.position.y > state.paddle.position.y &&
@@ -945,6 +1027,11 @@ function handlePaddleCollision() {
         
         // Normalize velocity to maintain constant speed
         state.ballVelocity.normalize().multiplyScalar(constants.BALL_SPEED);
+        
+        // Update fire aura if it exists
+        if (state.ball.userData.fireAura) {
+            state.ball.userData.fireAura.userData.update();
+        }
     }
 }
 
@@ -1114,32 +1201,49 @@ function checkLevelComplete() {
     }
 }
 
+let targetTiltX = 0;
+let targetTiltZ = 0;
+let currentTiltX = 0;
+let currentTiltZ = 0;
+const MAX_TILT = 0.2; 
+const TILT_SPEED = 0.1;
+
 // Update paddle position
 function updatePaddle() {
-    if (state.useMouse) {
-        // Mouse control with responsive movement
-        state.paddle.position.x += (state.mousePosition.x - state.paddle.position.x) * 0.2;
-        
-        // Limit Z movement to front third of game area
-        const targetZ = Math.max(-constants.GAME_DEPTH/6, Math.min(constants.GAME_DEPTH/3, state.mousePosition.z));
-        state.paddle.position.z += (targetZ - state.paddle.position.z) * 0.2;
+    // Keyboard control with fixed speed
+    const moveSpeed = constants.PADDLE_SPEED;
+    
+    // Movimento horizontal (esquerda/direita)
+    if (state.keys.left) {
+        state.paddle.position.x -= moveSpeed;
+        targetTiltZ = MAX_TILT; // Inclinar para a esquerda (Z positivo)
+    } else if (state.keys.right) {
+        state.paddle.position.x += moveSpeed;
+        targetTiltZ = -MAX_TILT; // Inclinar para a direita (Z negativo)
     } else {
-        // Keyboard control with fixed speed
-        const moveSpeed = constants.PADDLE_SPEED;
-        if (state.keys.left) {
-            state.paddle.position.x -= moveSpeed;
-        }
-        if (state.keys.right) {
-            state.paddle.position.x += moveSpeed;
-        }
-        if (state.keys.up) {
-            state.paddle.position.z -= moveSpeed;
-        }
-        if (state.keys.down) {
-            state.paddle.position.z += moveSpeed;
-        }
+        targetTiltZ = 0; // Voltar à posição neutra quando não há teclas pressionadas
     }
+    
+    // Movimento vertical (frente/trás)
+    if (state.keys.up) {
+        state.paddle.position.z -= moveSpeed;
+        targetTiltX = MAX_TILT; // Inclinar para frente (X positivo)
+    } else if (state.keys.down) {
+        state.paddle.position.z += moveSpeed;
+        targetTiltX = -MAX_TILT; // Inclinar para trás (X negativo)
+    } else {
+        targetTiltX = 0; // Voltar à posição neutra quando não há teclas pressionadas
+    }
+    
+    // Suavização da inclinação
+    currentTiltX += (targetTiltX - currentTiltX) * TILT_SPEED;
+    currentTiltZ += (targetTiltZ - currentTiltZ) * TILT_SPEED;
+    
+    // Aplicar a inclinação na raquete
+    state.paddle.rotation.x = currentTiltX;
+    state.paddle.rotation.z = currentTiltZ;
 
+    // Processamento de powerups
     if (state.powerups && state.powerups.length > 0) {
         const paddleBox = new THREE.Box3().setFromObject(state.paddle);
         
@@ -1160,15 +1264,15 @@ function updatePaddle() {
             const powerupBox = new THREE.Box3().setFromObject(powerup);
             if (powerupBox.intersectsBox(paddleBox)) {
                 // Apply powerup effect
-    if (powerup.userData.type === POWERUP_TYPE.PADDLE_DOUBLE_SIZE) {
-        applyPaddleDoubleSize();
-    } else if (powerup.userData.type === POWERUP_TYPE.MULTI_BALL) {
-        applyMultiBall();
-    } else if (powerup.userData.type === POWERUP_TYPE.EXPLOSIVE_BALL) {
-        applyExplosiveBall();
-    } else if (powerup.userData.type === POWERUP_TYPE.BARRIER) {
-        applyBarrier();
-    }
+                if (powerup.userData.type === POWERUP_TYPE.PADDLE_DOUBLE_SIZE) {
+                    applyPaddleDoubleSize();
+                } else if (powerup.userData.type === POWERUP_TYPE.MULTI_BALL) {
+                    applyMultiBall();
+                } else if (powerup.userData.type === POWERUP_TYPE.EXPLOSIVE_BALL) {
+                    applyExplosiveBall();
+                } else if (powerup.userData.type === POWERUP_TYPE.BARRIER) {
+                    applyBarrier();
+                }
                 
                 // Remove powerup
                 state.scene.remove(powerup);
@@ -1188,17 +1292,6 @@ function updatePaddle() {
     // Z boundaries (front/back)
     state.paddle.position.z = Math.max(-constants.GAME_DEPTH/2 + paddleHalfDepth, 
                              Math.min(constants.GAME_DEPTH/2 - paddleHalfDepth, state.paddle.position.z));
-    
-    // Add tilt effect based on movement
-    const tiltFactor = 0.1;
-    if (state.useMouse) {
-        state.paddle.rotation.z = (state.mousePosition.x - state.paddle.position.x) * tiltFactor;
-        state.paddle.rotation.x = (state.paddle.position.z - state.mousePosition.z) * tiltFactor;
-    } else {
-        // Tilt based on keyboard input
-        state.paddle.rotation.z = ((state.keys.right ? -1 : 0) + (state.keys.left ? 1 : 0)) * tiltFactor;
-        state.paddle.rotation.x = ((state.keys.up ? -1 : 0) + (state.keys.down ? 1 : 0)) * tiltFactor;
-    }
 }
 
 
@@ -1306,3 +1399,115 @@ function updateCameras() {
         }
     }
 }
+
+
+function createWallCollisionEffect(position, normal) {
+    const geometry = new THREE.RingGeometry(0, 0.5, 32);
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 0.7,
+        side: THREE.DoubleSide
+    });
+
+    const ripple = new THREE.Mesh(geometry, material);
+    ripple.position.copy(position);
+
+    // Orient the ripple based on the wall normal
+    if (Math.abs(normal.x) > 0) {
+        ripple.rotation.y = Math.PI / 2;
+    } else if (Math.abs(normal.z) > 0) {
+        ripple.rotation.x = Math.PI / 2;
+    }
+
+    state.scene.add(ripple);
+
+    // Animate the ripple
+    const startTime = Date.now();
+    const duration = 500; // milliseconds
+    
+    function animateRipple() {
+        const elapsed = Date.now() - startTime;
+        const progress = elapsed / duration;
+
+        if (progress < 1) {
+            // Scale up and fade out
+            const scale = 1 + progress * 2;
+            ripple.scale.set(scale, scale, scale);
+            material.opacity = 0.7 * (1 - progress);
+
+            requestAnimationFrame(animateRipple);
+        } else {
+            state.scene.remove(ripple);
+            material.dispose();
+            geometry.dispose();
+        }
+    }
+
+    animateRipple();
+}
+
+
+
+export function displayHitStreak(hitCount) {
+    if (!cachedFont) return; // Wait for font to load
+
+    const streakText = `${hitCount} Hit Streak!`;
+    const textGeometry = new TextGeometry(streakText, {
+        font: cachedFont,
+        size: 2,
+        height: 0.5,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0.08,
+        bevelSize: 0.06,
+        bevelOffset: 0,
+        bevelSegments: 5
+    });
+
+    // Center the text
+    textGeometry.computeBoundingBox();
+    const centerOffset = new THREE.Vector3();
+    textGeometry.boundingBox.getCenter(centerOffset).multiplyScalar(-1);
+    textGeometry.translate(centerOffset.x, centerOffset.y, 0);
+
+    // Create material with glow effect
+    const textMaterial = new THREE.MeshPhongMaterial({
+        color: 0x00ffff,
+        emissive: 0x00aaff,
+        emissiveIntensity: 0.5,
+        shininess: 100
+    });
+
+    // Create mesh
+    const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+    textMesh.position.set(0, 1, 0); // Position above the game area
+    textMesh.rotation.x = -Math.PI / 8;
+    
+    state.scene.add(textMesh);
+
+    // Animate and remove after duration
+    const duration = 1500;
+    const startTime = Date.now();
+
+    function animate() {
+        const elapsed = Date.now() - startTime;
+        const progress = elapsed / duration;
+
+        if (progress < 1) {
+            const scale = 1 + Math.sin(progress * Math.PI * 4) * 0.2;
+            textMesh.scale.set(scale, scale, scale);
+            textMaterial.emissiveIntensity = 0.5 + Math.sin(progress * Math.PI * 6) * 0.3;
+            requestAnimationFrame(animate);
+        } else {
+            state.scene.remove(textMesh);
+            textGeometry.dispose();
+            textMaterial.dispose();
+        }
+    }
+
+    animate();
+}
+
+
+

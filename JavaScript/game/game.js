@@ -8,6 +8,7 @@ export const state = {
     controls: null,
     gameStarted: false,
     gameOver: false,
+    paused: false,
     levelComplete: false,
     showHelpers: false,
     showTrajectory: true,
@@ -157,11 +158,17 @@ function onWindowResize() {
     state.renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Animation loop
 function animate() {
     if (!state.renderer) return;
     
     requestAnimationFrame(animate);
+    
+    // Skip update if game is paused
+    if (state.paused) {
+        // Renderize apenas a cena e UI, sem atualizar objetos
+        state.renderer.render(state.scene, state.camera);
+        return;
+    }
     
     // Update controls if they exist
     if (state.controls) {
@@ -171,9 +178,14 @@ function animate() {
     // Update trajectory visualization
     updateTrajectory();
     
-    // Update game objects if not in level complete state
-    if (!state.levelComplete) {
+    // Update game objects if game is active
+    if (state.gameStarted && !state.gameOver && !state.levelComplete) {
         updateObjects();
+    }
+    
+    // Update spotlight target to follow ball
+    if (state.lights.spotlight && state.ball) {
+        state.lights.spotlight.target.position.copy(state.ball.position);
     }
     
     // Render the scene
@@ -259,6 +271,27 @@ function addDebugControls() {
             toggleCameraType();
         }
     });
+}
+
+export function togglePause() {
+    state.paused = !state.paused;
+    console.log("Game paused:", state.paused);
+    
+    // Update UI
+    const pauseBtn = document.getElementById('pause-button');
+    if (pauseBtn) {
+        pauseBtn.textContent = state.paused ? 'Retomar' : 'Pausa';
+    }
+    
+    // Show pause message
+    if (state.paused) {
+        displayMessage("Jogo Pausado", "");
+    } else {
+        const existingMessage = document.getElementById('game-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+    }
 }
 
 // Implement missing debug control functions

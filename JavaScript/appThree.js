@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { initGame, state, constants, resetGame } from './game/game.js';
+import { initGame, state, constants, resetGame, togglePause } from './game/game.js';
 import { levels } from './game/levels.js';
 
 // For backward compatibility - define global variables
@@ -69,6 +69,7 @@ function createMainMenu() {
     addMenuStyles();
 }
 
+// Depois modificar a função startLevel() para usar a função importada:
 function startLevel(levelIndex) {
     currentLevel = levelIndex;
     
@@ -91,7 +92,7 @@ function startLevel(levelIndex) {
     const pauseBtn = document.createElement('button');
     pauseBtn.id = 'pause-button';
     pauseBtn.textContent = 'Pausa';
-    pauseBtn.addEventListener('click', togglePause);
+    pauseBtn.addEventListener('click', togglePause); 
     document.body.appendChild(pauseBtn);
 }
 
@@ -110,12 +111,6 @@ function showMainMenu() {
     // Show menu
     const menu = document.getElementById('main-menu');
     menu.style.display = 'flex';
-}
-
-function togglePause() {
-    state.paused = !state.paused;
-    const pauseBtn = document.getElementById('pause-button');
-    pauseBtn.textContent = state.paused ? 'Retomar' : 'Pausa';
 }
 
 function addMenuStyles() {
