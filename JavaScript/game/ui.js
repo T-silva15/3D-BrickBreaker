@@ -169,10 +169,9 @@ export function updateUI() {
         brickCount.textContent = state.bricks.filter(brick => brick.userData.active).length;
     }
     
-    // Update camera name
     const cameraName = document.getElementById('camera-name');
     if (cameraName && state.camera) {
-        cameraName.textContent = state.camera.name || 'Unknown';
+        cameraName.textContent = state.camera.name || "Câmera " + (state.currentCameraIndex + 1);
     }
     
     // Update light status indicators

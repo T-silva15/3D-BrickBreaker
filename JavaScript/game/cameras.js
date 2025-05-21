@@ -20,19 +20,19 @@ export function setupCameras() {
     mainCamera.name = "Main Camera";
     state.cameras.push(mainCamera);
     
-    // Top-down camera
-    const topCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    topCamera.position.set(0, constants.GAME_HEIGHT, 0);
-    topCamera.lookAt(0, 0, 0);
-    topCamera.name = "Top Camera";
-    state.cameras.push(topCamera);
+    // Top-right corner camera
+    const topRightCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    topRightCamera.position.set(constants.GAME_WIDTH/2 - 2, constants.GAME_HEIGHT/2 - 2, constants.GAME_DEPTH/2 - 2);
+    topRightCamera.lookAt(0, 0, 0);
+    topRightCamera.name = "Câmera Superior Direita";
+    state.cameras.push(topRightCamera);
     
-    // Side view camera
-    const sideCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    sideCamera.position.set(constants.GAME_WIDTH, 0, 0);
-    sideCamera.lookAt(0, 0, 0);
-    sideCamera.name = "Side Camera";
-    state.cameras.push(sideCamera);
+    // Top-left corner camera
+    const topLeftCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    topLeftCamera.position.set(-constants.GAME_WIDTH/2 + 2, constants.GAME_HEIGHT/2 - 2, constants.GAME_DEPTH/2 - 2);
+    topLeftCamera.lookAt(0, 0, 0);
+    topLeftCamera.name = "Câmera Superior Esquerda";
+    state.cameras.push(topLeftCamera);
     
     // Follow ball camera
     const followCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
