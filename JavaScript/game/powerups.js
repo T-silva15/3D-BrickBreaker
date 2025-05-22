@@ -72,9 +72,7 @@ export function createPowerUp(position, type) {
             color: 0xff6600,
             emissive: 0xff3300,
             emissiveIntensity: 0.8
-        });
-
-        // Create core sphere
+        });        // Create core sphere
         const core = new THREE.Mesh(coreGeometry, material);
         powerUpGroup.add(core);
 
@@ -90,17 +88,16 @@ export function createPowerUp(position, type) {
             spike.rotation.z = angle + Math.PI / 2;
             powerUpGroup.add(spike);
         }
-
     } else if (type === POWERUP_TYPE.BARRIER) {
         // Create shield-like icon
         
-        // Main shield body - curved surface
+        // Main shield body - use a complete hemisphere that can be seen from all angles
         const shieldGeometry = new THREE.SphereGeometry(
             constants.BRICK_WIDTH * 0.3, 
             16, 
             16, 
             0, 
-            Math.PI, 
+            Math.PI * 2, 
             0, 
             Math.PI / 2
         );
@@ -110,7 +107,8 @@ export function createPowerUp(position, type) {
             emissive: 0x224488,
             emissiveIntensity: 0.4,
             metalness: 0.7,
-            roughness: 0.2
+            roughness: 0.2,
+            side: THREE.DoubleSide // Make it visible from both sides
         });
         
         const shield = new THREE.Mesh(shieldGeometry, shieldMaterial);
@@ -118,13 +116,12 @@ export function createPowerUp(position, type) {
         shield.position.set(0, 0, 0);
         powerUpGroup.add(shield);
         
-        // Add shield rim
+        // Add shield rim - full circle torus
         const rimGeometry = new THREE.TorusGeometry(
             constants.BRICK_WIDTH * 0.28, 
             constants.BRICK_WIDTH * 0.04, 
             8, 
-            20, 
-            Math.PI
+            32
         );
         
         const rimMaterial = new THREE.MeshStandardMaterial({
@@ -140,8 +137,8 @@ export function createPowerUp(position, type) {
         rim.position.set(0, 0, 0);
         powerUpGroup.add(rim);
         
-        // Add decorative elements (vertical reinforcement bars)
-        for (let i = -2; i <= 2; i += 2) {
+        // Add decorative elements (reinforcement bars in a cross pattern)
+        for (let i = 0; i < 2; i++) {
             const barGeometry = new THREE.BoxGeometry(
                 constants.BRICK_WIDTH * 0.03, 
                 constants.BRICK_HEIGHT * 0.25,
@@ -149,42 +146,110 @@ export function createPowerUp(position, type) {
             );
             
             const bar = new THREE.Mesh(barGeometry, rimMaterial);
-            bar.position.set(
-                constants.BRICK_WIDTH * i * 0.1,
-                0,
-                -constants.BRICK_DEPTH * 0.05
-            );
+            bar.position.set(0, 0, 0);
             bar.rotation.x = Math.PI / 4;
+            bar.rotation.z = i * Math.PI / 2; // Rotate to form a cross
             powerUpGroup.add(bar);
         }
-        
-    } else {
-        // Create plus shape for other powerups
-        const horizontalGeometry = new THREE.BoxGeometry(
-            constants.BRICK_WIDTH * 0.6,
-            constants.BRICK_HEIGHT * 0.2,
-            constants.BRICK_DEPTH * 0.2
-        );
-        
-        const verticalGeometry = new THREE.BoxGeometry(
-            constants.BRICK_WIDTH * 0.2,
-            constants.BRICK_HEIGHT * 0.6,
-            constants.BRICK_DEPTH * 0.2
-        );
-        
-        const powerUpMaterial = new THREE.MeshStandardMaterial({
-            emissive: 0x00ff00,
-            color: 0x008800,
-            emissiveIntensity: 0.8
-        });
+          } else {
+        // Different visuals for PADDLE_SIZE_UP and PADDLE_DOUBLE_SIZE
+        if (type === POWERUP_TYPE.PADDLE_SIZE_UP) {
+            // Create plus shape for paddle size up
+            const horizontalGeometry = new THREE.BoxGeometry(
+                constants.BRICK_WIDTH * 0.6,
+                constants.BRICK_HEIGHT * 0.2,
+                constants.BRICK_DEPTH * 0.2
+            );
+            
+            const verticalGeometry = new THREE.BoxGeometry(
+                constants.BRICK_WIDTH * 0.2,
+                constants.BRICK_HEIGHT * 0.6,
+                constants.BRICK_DEPTH * 0.2
+            );
+            
+            const powerUpMaterial = new THREE.MeshStandardMaterial({
+                emissive: 0x00ff00,
+                color: 0x008800,
+                emissiveIntensity: 0.8
+            });
 
-        // Create the horizontal and vertical parts
-        const horizontalPart = new THREE.Mesh(horizontalGeometry, powerUpMaterial);
-        const verticalPart = new THREE.Mesh(verticalGeometry, powerUpMaterial);
+            // Create the horizontal and vertical parts
+            const horizontalPart = new THREE.Mesh(horizontalGeometry, powerUpMaterial);
+            const verticalPart = new THREE.Mesh(verticalGeometry, powerUpMaterial);
 
-        // Add both parts to the group
-        powerUpGroup.add(horizontalPart);
-        powerUpGroup.add(verticalPart);
+            // Add both parts to the group
+            powerUpGroup.add(horizontalPart);
+            powerUpGroup.add(verticalPart);        } else if (type === POWERUP_TYPE.PADDLE_DOUBLE_SIZE) {
+            // Create "2x" symbol for paddle double size
+            const powerUpMaterial = new THREE.MeshStandardMaterial({
+                emissive: 0xff9900,  // Orange color to distinguish from size up
+                color: 0xcc6600,
+                emissiveIntensity: 0.8
+            });
+            
+            // Create the "2" character
+            // Horizontal bar at top
+            const topBar = new THREE.Mesh(
+                new THREE.BoxGeometry(constants.BRICK_WIDTH * 0.25, constants.BRICK_HEIGHT * 0.1, constants.BRICK_DEPTH * 0.2),
+                powerUpMaterial
+            );
+            topBar.position.set(-constants.BRICK_WIDTH * 0.1, constants.BRICK_HEIGHT * 0.2, 0);
+            
+            // Horizontal bar in middle
+            const middleBar = new THREE.Mesh(
+                new THREE.BoxGeometry(constants.BRICK_WIDTH * 0.25, constants.BRICK_HEIGHT * 0.1, constants.BRICK_DEPTH * 0.2),
+                powerUpMaterial
+            );
+            middleBar.position.set(-constants.BRICK_WIDTH * 0.1, 0, 0);
+            
+            // Horizontal bar at bottom
+            const bottomBar = new THREE.Mesh(
+                new THREE.BoxGeometry(constants.BRICK_WIDTH * 0.25, constants.BRICK_HEIGHT * 0.1, constants.BRICK_DEPTH * 0.2),
+                powerUpMaterial
+            );
+            bottomBar.position.set(-constants.BRICK_WIDTH * 0.1, -constants.BRICK_HEIGHT * 0.2, 0);
+            
+            // Top-right diagonal piece
+            const topRight = new THREE.Mesh(
+                new THREE.BoxGeometry(constants.BRICK_WIDTH * 0.1, constants.BRICK_HEIGHT * 0.25, constants.BRICK_DEPTH * 0.2),
+                powerUpMaterial
+            );
+            topRight.position.set(constants.BRICK_WIDTH * 0.05, constants.BRICK_HEIGHT * 0.15, 0);
+            topRight.rotation.z = Math.PI / 4;
+            
+            // Bottom-left vertical piece
+            const bottomLeft = new THREE.Mesh(
+                new THREE.BoxGeometry(constants.BRICK_WIDTH * 0.1, constants.BRICK_HEIGHT * 0.25, constants.BRICK_DEPTH * 0.2),
+                powerUpMaterial
+            );
+            bottomLeft.position.set(-constants.BRICK_WIDTH * 0.2, -constants.BRICK_HEIGHT * 0.1, 0);
+            
+            // Create the "x" character
+            // First diagonal of "x"
+            const xDiagonal1 = new THREE.Mesh(
+                new THREE.BoxGeometry(constants.BRICK_WIDTH * 0.1, constants.BRICK_HEIGHT * 0.35, constants.BRICK_DEPTH * 0.2),
+                powerUpMaterial
+            );
+            xDiagonal1.position.set(constants.BRICK_WIDTH * 0.2, 0, 0);
+            xDiagonal1.rotation.z = Math.PI / 4;
+            
+            // Second diagonal of "x"
+            const xDiagonal2 = new THREE.Mesh(
+                new THREE.BoxGeometry(constants.BRICK_WIDTH * 0.1, constants.BRICK_HEIGHT * 0.35, constants.BRICK_DEPTH * 0.2),
+                powerUpMaterial
+            );
+            xDiagonal2.position.set(constants.BRICK_WIDTH * 0.2, 0, 0);
+            xDiagonal2.rotation.z = -Math.PI / 4;
+            
+            // Add all parts to the group
+            powerUpGroup.add(topBar);
+            powerUpGroup.add(middleBar);
+            powerUpGroup.add(bottomBar);
+            powerUpGroup.add(topRight);
+            powerUpGroup.add(bottomLeft);
+            powerUpGroup.add(xDiagonal1);
+            powerUpGroup.add(xDiagonal2);
+        }
     }
 
     // Position the group
