@@ -4,7 +4,10 @@ import { state, constants } from './game.js';
 
 window.addEventListener('keydown', (event) => {
     if (event.key.toLowerCase() === 'm' && state.gameStarted && !state.levelComplete) {
-        applyMultiBall();
+        applyBarrier();
+    }
+    if (event.key.toLowerCase() === 'b' && state.gameStarted && !state.levelComplete) {
+        applyBarrier();
     }
 });
 // --- Power-up Definitions ---
@@ -89,33 +92,72 @@ export function createPowerUp(position, type) {
         }
 
     } else if (type === POWERUP_TYPE.BARRIER) {
-        // Create stacked bricks icon
-        const brickGeometry = new THREE.BoxGeometry(
-            constants.BRICK_WIDTH * 0.2,
-            constants.BRICK_HEIGHT * 0.1,
-            constants.BRICK_DEPTH * 0.2
+        // Create shield-like icon
+        
+        // Main shield body - curved surface
+        const shieldGeometry = new THREE.SphereGeometry(
+            constants.BRICK_WIDTH * 0.3, 
+            16, 
+            16, 
+            0, 
+            Math.PI, 
+            0, 
+            Math.PI / 2
         );
-
-        const brickMaterial = new THREE.MeshStandardMaterial({
-            color: 0x808080,
-            emissive: 0x404040,
-            emissiveIntensity: 0.5
+        
+        const shieldMaterial = new THREE.MeshStandardMaterial({
+            color: 0x3366cc,  // Blue shield color
+            emissive: 0x224488,
+            emissiveIntensity: 0.4,
+            metalness: 0.7,
+            roughness: 0.2
         });
-
-        // Create 3 rows of bricks
-        for (let row = 0; row < 3; row++) {
-            const offset = (row % 2) * 0.1; // Alternate brick placement
-            for (let col = 0; col < 2; col++) {
-                const brick = new THREE.Mesh(brickGeometry, brickMaterial);
-                brick.position.set(
-                    (col * 0.25 - 0.12) + offset,
-                    row * 0.12 - 0.12,
-                    0
-                );
-                powerUpGroup.add(brick);
-            }
+        
+        const shield = new THREE.Mesh(shieldGeometry, shieldMaterial);
+        shield.rotation.x = Math.PI / 2;
+        shield.position.set(0, 0, 0);
+        powerUpGroup.add(shield);
+        
+        // Add shield rim
+        const rimGeometry = new THREE.TorusGeometry(
+            constants.BRICK_WIDTH * 0.28, 
+            constants.BRICK_WIDTH * 0.04, 
+            8, 
+            20, 
+            Math.PI
+        );
+        
+        const rimMaterial = new THREE.MeshStandardMaterial({
+            color: 0xcccccc,
+            emissive: 0x666666,
+            emissiveIntensity: 0.3,
+            metalness: 0.9,
+            roughness: 0.1
+        });
+        
+        const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.set(0, 0, 0);
+        powerUpGroup.add(rim);
+        
+        // Add decorative elements (vertical reinforcement bars)
+        for (let i = -2; i <= 2; i += 2) {
+            const barGeometry = new THREE.BoxGeometry(
+                constants.BRICK_WIDTH * 0.03, 
+                constants.BRICK_HEIGHT * 0.25,
+                constants.BRICK_DEPTH * 0.02
+            );
+            
+            const bar = new THREE.Mesh(barGeometry, rimMaterial);
+            bar.position.set(
+                constants.BRICK_WIDTH * i * 0.1,
+                0,
+                -constants.BRICK_DEPTH * 0.05
+            );
+            bar.rotation.x = Math.PI / 4;
+            powerUpGroup.add(bar);
         }
-
+        
     } else {
         // Create plus shape for other powerups
         const horizontalGeometry = new THREE.BoxGeometry(
@@ -329,13 +371,38 @@ export function applyBarrier() {
 
         state.scene.add(state.barrier);
 
+        // Start blinking 2 seconds before disappearing
+        const blinkingDuration = 2000; // 2 seconds of blinking
+        const totalDuration = 15000; // 15 seconds total
+        const blinkStart = totalDuration - blinkingDuration;
+        
+        // Set blinking interval
+        let isVisible = true;
+        let blinkingInterval;
+        
+        // Start blinking after 13 seconds
+        setTimeout(() => {
+            if (state.barrier) {
+                blinkingInterval = setInterval(() => {
+                    if (state.barrier) {
+                        isVisible = !isVisible;
+                        state.barrier.material.opacity = isVisible ? 0.7 : 0.2;
+                    }
+                }, 200); // Blink every 200ms
+            }
+        }, blinkStart);
+
         // Remove barrier after 15 seconds
         setTimeout(() => {
             if (state.barrier) {
+                // Clear the blinking interval if it exists
+                if (blinkingInterval) {
+                    clearInterval(blinkingInterval);
+                }
                 state.scene.remove(state.barrier);
                 state.barrier = null;
             }
-        }, 15000);
+        }, totalDuration);
     }
 }
 
