@@ -247,7 +247,8 @@ export function applyMultiBall() {
 
             newBall.userData = {
                 isExtraBall: true,
-                velocity: velocity
+                velocity: velocity,
+                creationTime: Date.now() // Track when the ball was created
             };
 
             // Add ball light
@@ -260,6 +261,18 @@ export function applyMultiBall() {
 
             state.scene.add(newBall);
             state.extraBalls.push(newBall);
+            
+            // Set timeout to remove this ball after 5 seconds
+            setTimeout(() => {
+                // Remove the ball if it still exists
+                if (state.extraBalls && state.scene) {
+                    const index = state.extraBalls.indexOf(newBall);
+                    if (index !== -1) {
+                        state.extraBalls.splice(index, 1);
+                        state.scene.remove(newBall);
+                    }
+                }
+            }, 5000); // 5 seconds duration
         }
     }
 }
