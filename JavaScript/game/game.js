@@ -46,7 +46,8 @@ export const state = {
         hemispheric: false
     },
     trajectoryObjects: [],
-    trajectoryColor: 0xff0000
+    trajectoryColor: 0xff0000,
+    displayMode: false
 };
 
 // Constants for game dimensions
@@ -112,6 +113,13 @@ export function initGame() {
         // Add debugging controls
         addDebugControls();
         
+        // Add display gallery button
+        addDisplayGalleryButton(() => {
+            state.displayMode = true;
+            state.paused = true; // Pause the game while in display mode
+            createDisplayGallery();
+        });
+        
         // Start animation loop
         animate();
         
@@ -137,7 +145,8 @@ import { setupLighting } from './lighting.js';
 import { createGameArea, createPaddle, createBall, createBricks } from './objects.js';
 import { setupInputListeners } from './controls.js';
 import { createTrajectoryLine } from './trajectory.js';
-import { createGameUI, displayMessage } from './ui.js';
+import { createGameUI, displayMessage, addDisplayGalleryButton } from './ui.js';
+import { createDisplayGallery, exitDisplayMode } from './display.js';
 
 // Declaration for functions that need to be implemented
 function onWindowResize() {
@@ -166,10 +175,13 @@ function animate() {
     
     requestAnimationFrame(animate);
     
-    // Skip update if game is paused
-    if (state.paused) {
-        // Renderize apenas a cena e UI, sem atualizar objetos
-        state.renderer.render(state.scene, state.camera);
+    // Skip update if game is paused or in display mode
+    if (state.paused || state.displayMode) {
+        // When in display mode, the display.js will handle its own rendering
+        if (!state.displayMode) {
+            // Only render for pause state, not display mode
+            state.renderer.render(state.scene, state.camera);
+        }
         return;
     }
     
@@ -272,6 +284,16 @@ function addDebugControls() {
         }
         if (event.key === 'c') {
             toggleCameraType();
+        }
+        if (event.key === 'g') {
+            // Toggle display gallery with 'g' key
+            if (state.displayMode) {
+                exitDisplayMode();
+            } else {
+                state.displayMode = true;
+                state.paused = true;
+                createDisplayGallery();
+            }
         }
     });
 }

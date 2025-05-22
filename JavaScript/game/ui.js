@@ -61,6 +61,7 @@ export function createGameUI() {
         <div>Toggle Lights: 1-5</div>
         <div>Toggle Helpers: H</div>
         <div>Toggle Trajectory: T</div>
+        <div>Object Gallery: G</div>
         <div>Restart: R</div>
     `;
     uiContainer.appendChild(controlHints);
@@ -254,6 +255,48 @@ export function displayMessage(title, subtitle) {
         messageContainer.style.transition = 'opacity 1s';
         setTimeout(() => messageContainer.remove(), 1000);
     }, 5000);
+}
+
+// Add a display gallery button to the UI
+export function addDisplayGalleryButton(onClickCallback) {
+    const existingButton = document.getElementById('display-gallery-button');
+    if (existingButton) {
+        existingButton.remove();
+    }
+    
+    const galleryButton = document.createElement('button');
+    galleryButton.id = 'display-gallery-button';
+    galleryButton.textContent = 'Object Gallery';
+    galleryButton.style.position = 'absolute';
+    galleryButton.style.top = '10px';
+    galleryButton.style.left = '50%';
+    galleryButton.style.transform = 'translateX(-50%)';
+    galleryButton.style.padding = '8px 16px';
+    galleryButton.style.backgroundColor = '#7722aa';
+    galleryButton.style.color = 'white';
+    galleryButton.style.border = 'none';
+    galleryButton.style.borderRadius = '4px';
+    galleryButton.style.cursor = 'pointer';
+    galleryButton.style.fontFamily = 'Arial, sans-serif';
+    galleryButton.style.fontSize = '14px';
+    galleryButton.style.zIndex = '100';
+    galleryButton.style.boxShadow = '0 0 10px rgba(170, 51, 255, 0.7)';
+    
+    // Add hover effects
+    galleryButton.addEventListener('mouseenter', () => {
+        galleryButton.style.backgroundColor = '#aa33ff';
+    });
+    
+    galleryButton.addEventListener('mouseleave', () => {
+        galleryButton.style.backgroundColor = '#7722aa';
+    });
+    
+    // Add click handler
+    galleryButton.addEventListener('click', onClickCallback);
+    
+    document.body.appendChild(galleryButton);
+    
+    return galleryButton;
 }
 
 // Add debugging information display
