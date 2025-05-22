@@ -1,19 +1,10 @@
 import * as THREE from 'three';
 import { state, constants } from './game.js';
 
-
-window.addEventListener('keydown', (event) => {
-    if (event.key.toLowerCase() === 'm' && state.gameStarted && !state.levelComplete) {
-        applyBarrier();
-    }
-    if (event.key.toLowerCase() === 'b' && state.gameStarted && !state.levelComplete) {
-        applyBarrier();
-    }
-});
 // --- Power-up Definitions ---
 export const POWERUP_TYPE = {
     PADDLE_SIZE_UP: 'PADDLE_SIZE_UP',
-    PADDLE_DOUBLE_SIZE: 'PADDLE_DOUBLE_SIZE', // Add the new powerup type
+    PADDLE_DOUBLE_SIZE: 'PADDLE_DOUBLE_SIZE', 
     MULTI_BALL: 'MULTI_BALL',
     EXPLOSIVE_BALL: 'EXPLOSIVE_BALL',
     BARRIER: 'BARRIER'

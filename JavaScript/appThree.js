@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { initGame, state, constants, resetGame, togglePause } from './game/game.js';
+import { initGame, state, constants, resetGame, togglePause, handleGameClick } from './game/game.js';
 import { levels } from './game/levels.js';
 
 // For backward compatibility - define global variables

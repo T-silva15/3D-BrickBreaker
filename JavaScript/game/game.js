@@ -1,4 +1,11 @@
 import * as THREE from 'three';
+import { setupCameras } from './cameras.js';
+import { setupLighting } from './lighting.js';
+import { createGameArea, createPaddle, createBall, createBricks } from './objects.js';
+import { setupInputListeners } from './controls.js';
+import { createTrajectoryLine } from './trajectory.js';
+import { createGameUI, displayMessage, addDisplayGalleryButton } from './ui.js';
+import { createDisplayGallery, exitDisplayMode } from './display.js';
 
 // Global state
 export const state = {
@@ -138,16 +145,6 @@ export function initGame() {
     }
 }
 
-// Since these functions need to be imported, let's use a separate 
-// import statement here to avoid circular dependencies
-import { setupCameras } from './cameras.js';
-import { setupLighting } from './lighting.js';
-import { createGameArea, createPaddle, createBall, createBricks } from './objects.js';
-import { setupInputListeners } from './controls.js';
-import { createTrajectoryLine } from './trajectory.js';
-import { createGameUI, displayMessage, addDisplayGalleryButton } from './ui.js';
-import { createDisplayGallery, exitDisplayMode } from './display.js';
-
 // Declaration for functions that need to be implemented
 function onWindowResize() {
     if (!state.renderer) return;
@@ -255,7 +252,7 @@ function setupGameClickHandler() {
 }
 
 // Handle click events based on game state
-function handleGameClick(event) {
+export function handleGameClick(event) {
     if (state.levelComplete) {
         resetGame();
         state.levelComplete = false;
