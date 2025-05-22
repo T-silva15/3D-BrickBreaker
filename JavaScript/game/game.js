@@ -17,6 +17,7 @@ export const state = {
     gameOver: false,
     paused: false,
     levelComplete: false,
+    waitingForStart: false, // New flag to indicate waiting for user click to start
     showHelpers: false,
     showTrajectory: true,
     powerups: [],
@@ -75,7 +76,7 @@ export const constants = {
 };
 
 // Initialize the game
-export function initGame() {
+export function initGame(level) {
     console.log("Initializing game...");
     
     // Create scene
@@ -135,8 +136,11 @@ export function initGame() {
         document.body.style.margin = "0";
         document.body.style.overflow = "hidden";
         
-        // Display initial instructions
-        displayMessage("Brick Breaker 3D", "Click to Start");
+        // Only display initial instructions if no level is provided
+        // The level-specific message will be displayed by startLevel instead
+        if (!level) {
+            displayMessage("Brick Breaker 3D", "Press Enter to Start");
+        }
         
         console.log("Game initialized successfully");
     } catch (error) {
@@ -182,16 +186,18 @@ function animate() {
         return;
     }
     
-    // Update controls if they exist
-    if (state.controls) {
+    // Update controls if they exist and game is not waiting for start
+    if (state.controls && !state.waitingForStart) {
         state.controls.update();
     }
     
-    // Update trajectory visualization
-    updateTrajectory();
+    // Update trajectory visualization - but only if game has started and not waiting
+    if (state.gameStarted && !state.waitingForStart) {
+        updateTrajectory();
+    }
     
-    // Update game objects if game is active
-    if (state.gameStarted && !state.gameOver && !state.levelComplete) {
+    // Update game objects if game is active and not waiting for start
+    if (state.gameStarted && !state.waitingForStart && !state.gameOver && !state.levelComplete) {
         updateObjects();
     }
     
@@ -213,6 +219,7 @@ export function resetGame() {
     state.gameOver = false;
     state.levelComplete = false;
     state.gameStarted = false;
+    state.waitingForStart = true; // Set waiting for start flag
     
     resetBall();
     createBricks();
@@ -221,6 +228,9 @@ export function resetGame() {
     if (state.paddle) {
         state.paddle.position.set(0, -constants.GAME_HEIGHT/2 + constants.PADDLE_HEIGHT, 0);
     }
+    
+    // Display "Press Enter to Start" message
+    displayMessage("Brick Breaker 3D", "Press Enter to Start", false);
     
     console.log("Game reset complete");
 }
@@ -231,6 +241,7 @@ export function startGame() {
     
     console.log("Starting game...");
     state.gameStarted = true;
+    state.waitingForStart = false; // Reset the waiting flag
     
     // Update trajectory visibility
     updateTrajectory();
@@ -238,7 +249,9 @@ export function startGame() {
     // Remove any displayed messages
     const existingMessage = document.getElementById('game-message');
     if (existingMessage) {
-        existingMessage.remove();
+        existingMessage.style.opacity = '0';
+        existingMessage.style.transition = 'opacity 0.5s';
+        setTimeout(() => existingMessage.remove(), 500);
     }
 }
 
@@ -253,6 +266,16 @@ function setupGameClickHandler() {
 
 // Handle click events based on game state
 export function handleGameClick(event) {
+    // If in display mode, don't handle game clicks
+    if (state.displayMode) {
+        return;
+    }
+    
+    // If game is paused, don't start on click
+    if (state.paused) {
+        return;
+    }
+    
     if (state.levelComplete) {
         resetGame();
         state.levelComplete = false;
@@ -264,10 +287,11 @@ export function handleGameClick(event) {
         return;
     }
     
-    if (!state.gameStarted) {
-        startGame();
-        return;
-    }
+    // We no longer start the game on click, only with Enter key
+    // if (!state.gameStarted) {
+    //     startGame();
+    //     return;
+    // }
 }
 
 // Add debug controls
@@ -307,11 +331,13 @@ export function togglePause() {
     
     // Show pause message
     if (state.paused) {
-        displayMessage("Jogo Pausado", "");
+        displayMessage("Jogo Pausado", "Click 'Retomar' to continue", false);
     } else {
         const existingMessage = document.getElementById('game-message');
         if (existingMessage) {
-            existingMessage.remove();
+            existingMessage.style.opacity = '0';
+            existingMessage.style.transition = 'opacity 0.5s';
+            setTimeout(() => existingMessage.remove(), 500);
         }
     }
 }

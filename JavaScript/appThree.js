@@ -77,9 +77,18 @@ function startLevel(levelIndex) {
     const menu = document.getElementById('main-menu');
     menu.style.display = 'none';
     
-    // Initialize the game with the selected level
+    // Initialize the game with the selected level but don't start it yet
     initGame(levels[levelIndex]);
     gameActive = true;
+    
+    // Set the waitingForStart flag to true
+    import('./game/game.js').then(module => {
+        module.state.waitingForStart = true;
+    });
+      // Display "Press Enter to Start" message
+    import('./game/ui.js').then(module => {
+        module.displayMessage(`Level ${levelIndex + 1}: ${levels[levelIndex].name}`, "Press Enter to Start", false);
+    });
     
     // Add back to menu button
     const backBtn = document.createElement('button');

@@ -815,16 +815,17 @@ export function resetBall() {
 
 // Update all game objects
 export function updateObjects() {
-    // Update paddle position
-    updatePaddle();
-    updatePowerups();
-    
-    // Update ball physics
-    if (state.gameStarted && !state.levelComplete) {
+    // Only update paddle if game is started, not level complete or game over
+    if (state.gameStarted && !state.levelComplete && !state.gameOver) {
+        // Update paddle position
+        updatePaddle();
+        updatePowerups();
+        
+        // Update ball physics
         updateBall();
     }
     
-    // Update camera positions
+    // Update camera positions - cameras can still update even when game is not started
     updateCameras();
 }
 

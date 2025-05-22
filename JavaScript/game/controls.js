@@ -13,22 +13,39 @@ export function setupInputListeners() {
 
 // Handle keydown events
 function handleKeyDown(event) {
+    // Check if Enter key is pressed to start the game
+    if (event.key === 'Enter') {
+        if (state.waitingForStart && !state.gameStarted && !state.gameOver && !state.levelComplete && !state.paused && !state.displayMode) {
+            // Import and call startGame
+            import('./game.js').then(module => {
+                module.startGame();
+            });
+            return;
+        }
+    }
+    
+    // Only handle movement keys if the game has started, is not waiting for start,
+    // and is not paused or in display mode
+    const gameActive = state.gameStarted && !state.waitingForStart && 
+                      !state.gameOver && !state.levelComplete && 
+                      !state.paused && !state.displayMode;
+    
     switch(event.key) {
         case 'ArrowLeft':
         case 'a':
-            state.keys.left = true;
+            if (gameActive) state.keys.left = true;
             break;
         case 'ArrowRight':
         case 'd':
-            state.keys.right = true;
+            if (gameActive) state.keys.right = true;
             break;
         case 'ArrowUp':
         case 'w':
-            state.keys.up = true;
+            if (gameActive) state.keys.up = true;
             break;
         case 'ArrowDown':
         case 's':
-            state.keys.down = true;
+            if (gameActive) state.keys.down = true;
             break;
         case 'c':
             // Switch camera
@@ -74,6 +91,8 @@ function handleKeyDown(event) {
 
 // Handle keyup events
 function handleKeyUp(event) {
+    // Movement keys should always be reset on keyup, regardless of game state
+    // This prevents keys from getting "stuck" when the game starts
     switch(event.key) {
         case 'ArrowLeft':
         case 'a':

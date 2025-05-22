@@ -55,6 +55,7 @@ export function createGameUI() {
     controlHints.style.maxHeight = '200px'; // Start expanded
     controlHints.style.opacity = '1';
     controlHints.innerHTML = `
+        <div>Press Enter to Start</div>
         <div>Movement: Mouse or WASD</div>
         <div>Change Camera: C</div>
         <div>Toggle Orthographic: O</div>
@@ -212,11 +213,13 @@ export function updateUI() {
 }
 
 // Display a message on screen
-export function displayMessage(title, subtitle) {
+export function displayMessage(title, subtitle, autoRemove = true) {
     // Remove any existing message
     const existingMessage = document.getElementById('game-message');
     if (existingMessage) {
-        existingMessage.remove();
+        existingMessage.style.opacity = '0';
+        existingMessage.style.transition = 'opacity 0.5s';
+        setTimeout(() => existingMessage.remove(), 500);
     }
     
     // Create message container
@@ -233,6 +236,8 @@ export function displayMessage(title, subtitle) {
     messageContainer.style.background = 'rgba(0, 0, 0, 0.7)';
     messageContainer.style.borderRadius = '10px';
     messageContainer.style.zIndex = '100';
+    messageContainer.style.opacity = '0';
+    messageContainer.style.transition = 'opacity 0.5s';
     
     // Create title
     const titleElement = document.createElement('h1');
@@ -249,12 +254,18 @@ export function displayMessage(title, subtitle) {
     // Add to document
     document.body.appendChild(messageContainer);
     
-    // Remove message after 5 seconds
+    // Fade in
     setTimeout(() => {
-        messageContainer.style.opacity = '0';
-        messageContainer.style.transition = 'opacity 1s';
-        setTimeout(() => messageContainer.remove(), 1000);
-    }, 5000);
+        messageContainer.style.opacity = '1';
+    }, 10);
+    
+    // Auto-remove message after 5 seconds if autoRemove is true
+    if (autoRemove) {
+        setTimeout(() => {
+            messageContainer.style.opacity = '0';
+            setTimeout(() => messageContainer.remove(), 500);
+        }, 5000);
+    }
 }
 
 // Add a display gallery button to the UI
