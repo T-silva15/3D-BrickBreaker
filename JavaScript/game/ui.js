@@ -55,8 +55,6 @@ export function createGameUI() {
     controlHints.style.maxHeight = '200px'; // Start expanded
     controlHints.style.opacity = '1';
     controlHints.innerHTML = `
-        <div>Press Enter to Start</div>
-        <div>Movement: Mouse or WASD</div>
         <div>Change Camera: C</div>
         <div>Toggle Orthographic: O</div>
         <div>Toggle Lights: 1-5</div>
