@@ -72,7 +72,7 @@ export const constants = {
     PADDLE_DEPTH: 10,
     BALL_RADIUS: 0.8,
     PADDLE_SPEED: 0.5,
-    MAX_LEVELS: 3
+    MAX_LEVELS: 5 // Set to the number of levels in levels.js
 };
 
 // Initialize the game

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { state, constants } from './game.js';
 import {     createFireAura, applyBarrier, applyExplosiveBall, updatePowerups,    applyMultiBall ,createPowerUp, POWERUP_TYPE, applyPaddleSizeUp, applyPaddleDoubleSize } from './powerups.js';
-
+import { levels, brickTypes } from './levels.js';
 import { displayMessage } from './ui.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
@@ -658,23 +658,39 @@ export function createBricks() {
         createCyberpunkBrickTexture('#ffcc00')  // Gold
     ];
     
-    // Configure brick layout based on level
-    let config;
-    switch(state.level) {
-        case 1:
-            config = { rows: 4, cols: 8, layers: 2 };
-            break;
-        case 2:
-            config = { rows: 5, cols: 10, layers: 3 };
-            break;
-        case 3:
-            config = { rows: 6, cols: 12, layers: 3 };
-            break;
-        default:
-            config = { rows: 4, cols: 8, layers: 2 };
+    // Get level configuration from levels.js
+    const levelIndex = state.level - 1;
+    if (levelIndex < 0 || levelIndex >= levels.length) {
+        console.error(`Invalid level index: ${levelIndex}`);
+        return;
     }
     
-    const { rows, cols, layers } = config;
+    const levelConfig = levels[levelIndex];
+    
+    // Apply level settings
+    if (levelConfig.backgroundColor) {
+        state.scene.background = new THREE.Color(levelConfig.backgroundColor);
+    }
+    
+    // Update game constants based on level settings
+    if (levelConfig.paddleSpeed) {
+        constants.PADDLE_SPEED = levelConfig.paddleSpeed;
+    }
+    
+    if (levelConfig.ballSpeed) {
+        constants.BALL_SPEED = levelConfig.ballSpeed;
+        // If the game has already started, we don't modify the ball velocity
+        // Otherwise, set the initial velocity based on the level's ballSpeed
+        if (!state.gameStarted && state.ball) {
+            const speed = levelConfig.ballSpeed;
+            state.ballVelocity.set(speed * 0.25, speed, speed * 0.2);
+        }
+    }
+    
+    // Configure brick layout based on level
+    const rows = levelConfig.brickRows || 4;
+    const cols = levelConfig.brickCols || 8;
+    const layers = levelConfig.brickLayers || 1;
     
     // Spacing between bricks
     const brickSpacingX = 0.8;
@@ -689,7 +705,77 @@ export function createBricks() {
     const startY = constants.GAME_HEIGHT/3;
     const startZ = -totalDepth / 2 + constants.BRICK_DEPTH / 2;
     
-    // Create brick layers
+    // Store the brick layout data
+    const brickLayoutData = new Array(layers).fill(null).map(() => 
+        new Array(rows).fill(null).map(() => 
+            new Array(cols).fill(null)
+        )
+    );
+    
+    // Populate brick layout based on level definition
+    if (levelConfig.brickLayout) {
+        // Process layout definitions for each brick type
+        for (const [brickType, layoutInfo] of Object.entries(levelConfig.brickLayout)) {
+            if (layoutInfo === 'fill') {
+                // This type will be used to fill any empty spaces later
+                continue;
+            } else if (Array.isArray(layoutInfo)) {
+                // Layout is specified as [[col1, col2, ...], [row1, row2, ...]]
+                // Which means place this brick type at the coordinates [row][col]
+                const colsArray = layoutInfo[0] || [];
+                const rowsArray = layoutInfo[1] || [];
+                
+                for (let layer = 0; layer < layers; layer++) {
+                    for (let rowIndex = 0; rowIndex < rowsArray.length; rowIndex++) {
+                        const row = rowsArray[rowIndex];
+                        if (row < 0 || row >= rows) continue;
+                        
+                        for (let colIndex = 0; colIndex < colsArray.length; colIndex++) {
+                            const col = colsArray[colIndex];
+                            if (col < 0 || col >= cols) continue;
+                            
+                            brickLayoutData[layer][row][col] = brickType;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Fill remaining spaces with the 'fill' type if specified
+        for (const [brickType, layoutInfo] of Object.entries(levelConfig.brickLayout)) {
+            if (layoutInfo === 'fill') {
+                for (let layer = 0; layer < layers; layer++) {
+                    for (let row = 0; row < rows; row++) {
+                        for (let col = 0; col < cols; col++) {
+                            if (brickLayoutData[layer][row][col] === null) {
+                                brickLayoutData[layer][row][col] = brickType;
+                            }
+                        }
+                    }
+                }
+                break; // Only one type can be 'fill'
+            }
+        }
+    } else {
+        // No specific layout defined, use default patterns
+        for (let layer = 0; layer < layers; layer++) {
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    // Skip some bricks for visual interest
+                    if ((layer + row + col) % 7 === 0) continue;
+                    
+                    // Default to first brick type in the list
+                    const defaultType = levelConfig.brickTypes && levelConfig.brickTypes.length > 0 
+                        ? levelConfig.brickTypes[0] 
+                        : 'normal';
+                    
+                    brickLayoutData[layer][row][col] = defaultType;
+                }
+            }
+        }
+    }
+    
+    // Create bricks based on the layout data
     for (let layer = 0; layer < layers; layer++) {
         const layerY = startY - layer * (constants.BRICK_HEIGHT + brickSpacingY);
         
@@ -697,8 +783,8 @@ export function createBricks() {
             const rowZ = startZ + row * (constants.BRICK_DEPTH + brickSpacingZ);
             
             for (let col = 0; col < cols; col++) {
-                // Skip some bricks for visual interest
-                if ((layer + row + col) % 7 === 0) continue;
+                const brickType = brickLayoutData[layer][row][col];
+                if (!brickType) continue; // Skip if no brick type assigned
                 
                 const brickGeometry = new THREE.BoxGeometry(
                     constants.BRICK_WIDTH, 
@@ -717,8 +803,11 @@ export function createBricks() {
                     case 2: emissiveColor = new THREE.Color(0x332200); break; // Dim gold
                 }
                 
+                // Get brick type definition from levels.js
+                const brickTypeInfo = brickTypes[brickType] || brickTypes.normal;
+                
                 const brickMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xffffff, // Use white as base and let texture provide color
+                    color: brickTypeInfo.color || 0xffffff, 
                     specular: 0xffffff,
                     shininess: 50,
                     map: brickTextures[textureIndex],
@@ -738,11 +827,13 @@ export function createBricks() {
                 brick.castShadow = true;
                 brick.receiveShadow = true;
                 
-                // Store metadata
+                // Store metadata with brick type properties
                 brick.userData = {
-                    points: 10 * (layer + 1),
-                    hits: 1,
-                    active: true
+                    type: brickType,
+                    points: brickTypeInfo.points || 10 * (layer + 1),
+                    hits: brickTypeInfo.health || 1,
+                    active: true,
+                    onDestroy: brickTypeInfo.onDestroy || null
                 };
                 
                 // Create a bounding box for collision detection
@@ -753,6 +844,18 @@ export function createBricks() {
             }
         }
     }
+    
+    // Update powerup chance based on level settings
+    if (levelConfig.powerupChance) {
+        state.powerupChance = levelConfig.powerupChance;
+    }
+    
+    // Display level information
+    const levelMessage = `Level ${state.level}: ${levelConfig.name}`;
+    const levelDescription = levelConfig.description || "";
+    displayMessage(levelMessage, levelDescription, true);
+    
+    console.log(`Level ${state.level} loaded: ${levelConfig.name}`);
 }
 
 // Reset the ball position
@@ -1142,8 +1245,57 @@ function handleBrickCollision(brick, brickBox) {
 function deactivateBrick(brick) {
     brick.userData.active = false;
     
-    // chance to spawn a powerup
-    if (Math.random() < 0.25) {
+    // Get current level configuration
+    const levelIndex = state.level - 1;
+    const levelConfig = levels[levelIndex];
+    
+    // Get powerup chance from level config or use default
+    const powerupChance = levelConfig.powerupChance || 0.25;
+    
+    // Handle special brick type behavior
+    if (brick.userData.onDestroy) {
+        switch(brick.userData.onDestroy) {
+            case 'explode':
+                // Explode and affect nearby bricks
+                const explosionRadius = (levelConfig.specialFeatures?.explosionRadius || 2) * constants.BRICK_WIDTH;
+                const brickCenter = new THREE.Vector3().copy(brick.position);
+                
+                state.bricks.forEach(nearbyBrick => {
+                    if (nearbyBrick.userData.active && nearbyBrick !== brick) {
+                        const nearbyCenter = new THREE.Vector3().copy(nearbyBrick.position);
+                        
+                        if (brickCenter.distanceTo(nearbyCenter) <= explosionRadius) {
+                            // Add score for each brick affected
+                            state.score += nearbyBrick.userData.points / 2; // Half points for chain reaction
+                            deactivateBrick(nearbyBrick);
+                        }
+                    }
+                });
+                break;
+                
+            case 'triggerEffect':
+                // Apply a special game effect
+                if (Math.random() < 0.5) {
+                    // 50% chance to create a multi-ball
+                    const powerUp = createPowerUp(brick.position.clone(), POWERUP_TYPE.MULTI_BALL);
+                    powerUp.userData.velocity = new THREE.Vector3(0, -0.05, 0);
+                    state.powerups = state.powerups || [];
+                    state.powerups.push(powerUp);
+                    state.scene.add(powerUp);
+                } else {
+                    // 50% chance to create explosive ball
+                    const powerUp = createPowerUp(brick.position.clone(), POWERUP_TYPE.EXPLOSIVE_BALL);
+                    powerUp.userData.velocity = new THREE.Vector3(0, -0.05, 0);
+                    state.powerups = state.powerups || [];
+                    state.powerups.push(powerUp);
+                    state.scene.add(powerUp);
+                }
+                break;
+        }
+    }
+    
+    // Chance to spawn a powerup based on level's powerupChance
+    if (Math.random() < powerupChance) {
         // Randomly choose powerup type
         const powerupTypes = [
             POWERUP_TYPE.PADDLE_DOUBLE_SIZE,
@@ -1199,6 +1351,20 @@ function checkLevelComplete() {
         
         // Reset game state
         state.gameStarted = false;
+        
+        // If there's a next level, display its info
+        if (state.level <= constants.MAX_LEVELS) {
+            setTimeout(() => {
+                // Get next level info
+                const nextLevelIndex = state.level - 1;
+                const nextLevel = levels[nextLevelIndex];
+                if (nextLevel) {
+                    const levelMessage = `Next: Level ${state.level} - ${nextLevel.name}`;
+                    const levelDescription = nextLevel.description || "";
+                    displayMessage(levelMessage, levelDescription, true);
+                }
+            }, 3000); // Show next level info after 3 seconds
+        }
     }
 }
 

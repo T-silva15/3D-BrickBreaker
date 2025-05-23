@@ -6,15 +6,18 @@
 export const levels = [
     {
         name: "Iniciante",
-        description: "Comece sua jornada com tijolos básicos",
-        brickRows: 3,
-        brickCols: 6,
+        description: "Comece sua jornada com tijolos básicos - aprenda os controles!",
+        brickRows: 2,
+        brickCols: 5,
         brickTypes: ['normal'],
         pattern: 'simple',
-        paddleSpeed: 0.35,
-        ballSpeed: 0.4,
+        brickLayout: {
+            normal: 'fill' // simple fill pattern for beginners
+        },
+        paddleSpeed: 0.3,
+        ballSpeed: 0.3,
         backgroundColor: 0x001122,
-        powerupChance: 0.3
+        powerupChance: 0.4
     },
     {
         name: "Fortaleza Resistente",
