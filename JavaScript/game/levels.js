@@ -57,7 +57,7 @@ export const levels = [
         }
     },
     {
-        name: "Fortaleza Móvel",
+        name: "Parede Móvel",
         description: "Cuidado! Os tijolos se movem!",
         brickRows: 4,
         brickCols: 8,

@@ -850,10 +850,12 @@ export function createBricks() {
         state.powerupChance = levelConfig.powerupChance;
     }
     
-    // Display level information
-    const levelMessage = `Level ${state.level}: ${levelConfig.name}`;
-    const levelDescription = levelConfig.description || "";
-    displayMessage(levelMessage, levelDescription, true);
+    // Display level information only if we're not in a game reset
+    if (!state.waitingForStart) {
+        const levelMessage = `Level ${state.level}: ${levelConfig.name}`;
+        const levelDescription = levelConfig.description || "";
+        displayMessage(levelMessage, levelDescription, true);
+    }
     
     console.log(`Level ${state.level} loaded: ${levelConfig.name}`);
 }
@@ -1347,21 +1349,30 @@ function checkLevelComplete() {
         state.level = Math.min(state.level + 1, constants.MAX_LEVELS);
         
         // Show level complete message
-        displayMessage("Level Complete!", "Click to continue");
+        displayMessage("Level Complete!", "Click to continue", false);
         
         // Reset game state
         state.gameStarted = false;
         
-        // If there's a next level, display its info
+        // If there's a next level, display its info with a delay
         if (state.level <= constants.MAX_LEVELS) {
-            setTimeout(() => {
-                // Get next level info
-                const nextLevelIndex = state.level - 1;
-                const nextLevel = levels[nextLevelIndex];
-                if (nextLevel) {
-                    const levelMessage = `Next: Level ${state.level} - ${nextLevel.name}`;
-                    const levelDescription = nextLevel.description || "";
-                    displayMessage(levelMessage, levelDescription, true);
+            // Clear any existing timers
+            if (state.levelInfoTimer) {
+                clearTimeout(state.levelInfoTimer);
+            }
+            
+            // Set a new timer for showing the next level info
+            state.levelInfoTimer = setTimeout(() => {
+                // Only show if the game hasn't been restarted
+                if (state.levelComplete) {
+                    // Get next level info
+                    const nextLevelIndex = state.level - 1;
+                    const nextLevel = levels[nextLevelIndex];
+                    if (nextLevel) {
+                        const levelMessage = `Next: Level ${state.level} - ${nextLevel.name}`;
+                        const levelDescription = nextLevel.description || "";
+                        displayMessage(levelMessage, levelDescription, true);
+                    }
                 }
             }, 3000); // Show next level info after 3 seconds
         }
