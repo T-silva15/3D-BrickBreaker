@@ -767,14 +767,47 @@ export function skipLevel() {
     // Increase level
     state.level += 1;
     
+    // If we've reached the end of available levels, loop back to the first level
+    if (state.level > levels.length) {
+        state.level = 1;
+        console.log('Reached end of levels, starting over from level 1');
+    }
+    
+    // Get level configuration
+    const levelConfig = levels[state.level - 1];
+    if (!levelConfig) {
+        console.error(`Invalid level index: ${state.level - 1}`);
+        return;
+    }
+    
+    console.log(`Loading level ${state.level}: ${levelConfig.name}`);
+    
     // Reset game state for new level
     state.gameStarted = false;
     state.gameOver = false;
     state.levelComplete = false;
     state.waitingForStart = true;
     
+    // Update level-specific properties
+    if (levelConfig.backgroundColor) {
+        state.scene.background = new THREE.Color(levelConfig.backgroundColor);
+    }
+    
+    if (levelConfig.ballSpeed) {
+        state.ballVelocity.set(
+            Math.sign(state.ballVelocity.x) * levelConfig.ballSpeed,
+            Math.sign(state.ballVelocity.y) * levelConfig.ballSpeed,
+            Math.sign(state.ballVelocity.z) * levelConfig.ballSpeed
+        );
+    }
+    
     // Reset ball and paddle
     resetBall();
+    
+    // Update paddle speed if specified in level
+    if (levelConfig.paddleSpeed) {
+        constants.PADDLE_SPEED = levelConfig.paddleSpeed;
+    }
     
     // Clear existing bricks
     state.bricks.forEach(brick => state.scene.remove(brick));
@@ -784,14 +817,11 @@ export function skipLevel() {
     createBricks();
     
     // Show level message
-    const levelConfig = levels[state.level - 1];
-    if (levelConfig) {
-        displayMessage(
-            `Level ${state.level}: ${levelConfig.name}`, 
-            levelConfig.description || "", 
-            true
-        );
-    }
+    displayMessage(
+        `Level ${state.level}: ${levelConfig.name}`, 
+        levelConfig.description || "Press Enter to Start", 
+        true
+    );
 }
 
 

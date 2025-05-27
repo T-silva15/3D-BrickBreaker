@@ -69,7 +69,7 @@ function createMainMenu() {
     addMenuStyles();
 }
 
-// Depois modificar a função startLevel() para usar a função importada:
+// Fixed startLevel function to properly set the game level
 function startLevel(levelIndex) {
     currentLevel = levelIndex;
     
@@ -77,34 +77,77 @@ function startLevel(levelIndex) {
     const menu = document.getElementById('main-menu');
     menu.style.display = 'none';
     
-    // Initialize the game with the selected level but don't start it yet
-    initGame(levels[levelIndex]);
+    // Set the state level before initializing
+    state.level = levelIndex + 1;
+    console.log(`Setting level to ${state.level}`);
+    
+    // Initialize the game with the selected level
+    initGame();
     gameActive = true;
     
-    // Set the waitingForStart flag to true
-    import('./game/game.js').then(module => {
-        module.state.waitingForStart = true;
-    });
-      // Display "Press Enter to Start" message
-    import('./game/ui.js').then(module => {
-        module.displayMessage(`Level ${levelIndex + 1}: ${levels[levelIndex].name}`, "Press Enter to Start", false);
-    });
+    // Update the state with correct level info
+    state.waitingForStart = true;
     
-    // Add back to menu button
+    // Make sure the background color is set for this level
+    if (levels[levelIndex] && levels[levelIndex].backgroundColor) {
+        state.scene.background = new THREE.Color(levels[levelIndex].backgroundColor);
+    }
+      // Make sure the ball speed is set for this level
+    if (levels[levelIndex] && levels[levelIndex].ballSpeed) {
+        constants.BALL_SPEED = levels[levelIndex].ballSpeed;
+        
+        // Also update the actual ball velocity if the ball exists
+        if (state.ball) {
+            // Normalize and scale to the new speed
+            state.ballVelocity.normalize().multiplyScalar(levels[levelIndex].ballSpeed);
+        }
+    }
+    
+    // Make sure the paddle speed is set for this level
+    if (levels[levelIndex] && levels[levelIndex].paddleSpeed) {
+        constants.PADDLE_SPEED = levels[levelIndex].paddleSpeed;
+    }
+    
+      // Add back to menu button
     const backBtn = document.createElement('button');
     backBtn.id = 'back-to-menu';
     backBtn.textContent = 'Menu';
     backBtn.addEventListener('click', () => {
-        // Simply reload the page to return to the main menu
-        window.location.reload();
-    });
-    document.body.appendChild(backBtn);
+        // Show the main menu again and reset the game state
+        const menu = document.getElementById('main-menu');
+        if (menu) {
+            menu.style.display = 'flex';
+        } else {
+            // If menu doesn't exist, recreate it
+            createMainMenu();
+        }
+        
+        // Clean up the current game
+        if (state.renderer) {
+            state.renderer.domElement.remove();
+            state.scene = null;
+            state.camera = null;
+            
+            // Reset any added DOM elements
+            const existingBackBtn = document.getElementById('back-to-menu');
+            if (existingBackBtn && existingBackBtn !== backBtn) existingBackBtn.remove();
+            
+            const pauseBtn = document.getElementById('pause-button');
+            if (pauseBtn) pauseBtn.remove();
+            
+            const gameUI = document.getElementById('game-ui');
+            if (gameUI) gameUI.remove();
+            
+            const gameMessage = document.getElementById('game-message');
+            if (gameMessage) gameMessage.remove();
+        }
+    });    document.body.appendChild(backBtn);
     
     // Add pause button
     const pauseBtn = document.createElement('button');
     pauseBtn.id = 'pause-button';
     pauseBtn.textContent = 'Pausa';
-    pauseBtn.addEventListener('click', togglePause); 
+    pauseBtn.addEventListener('click', togglePause);
     document.body.appendChild(pauseBtn);
 }
 
@@ -116,13 +159,37 @@ function showMainMenu() {
     const pauseBtn = document.getElementById('pause-button');
     if (pauseBtn) pauseBtn.remove();
     
+    // Hide any other game UI elements
+    const gameUI = document.getElementById('game-ui');
+    if (gameUI) gameUI.remove();
+    
+    const gameMessage = document.getElementById('game-message');
+    if (gameMessage) gameMessage.remove();
+    
+    const displayGalleryButton = document.getElementById('display-gallery-button');
+    if (displayGalleryButton) displayGalleryButton.remove();
+    
     // Reset game state
     gameActive = false;
-    resetGame();
+    if (state.renderer && state.renderer.domElement) {
+        state.renderer.domElement.remove();
+    }
     
-    // Show menu
+    // Clear WebGL context
+    if (state.scene) {
+        // Clear scene objects
+        while(state.scene.children.length > 0) { 
+            state.scene.remove(state.scene.children[0]); 
+        }
+    }
+    
+    // Show menu or recreate if needed
     const menu = document.getElementById('main-menu');
-    menu.style.display = 'flex';
+    if (menu) {
+        menu.style.display = 'flex';
+    } else {
+        createMainMenu();
+    }
 }
 
 function addMenuStyles() {
