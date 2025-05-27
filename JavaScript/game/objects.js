@@ -651,13 +651,6 @@ export function createBricks() {
     state.bricks.forEach(brick => state.scene.remove(brick));
     state.bricks = [];
     
-    // Create cyberpunk brick textures with different color variants
-    const brickTextures = [
-        createCyberpunkBrickTexture('#ff00ff'), // Magenta
-        createCyberpunkBrickTexture('#00ffff'), // Cyan
-        createCyberpunkBrickTexture('#ffcc00')  // Gold
-    ];
-    
     // Get level configuration from levels.js
     const levelIndex = state.level - 1;
     if (levelIndex < 0 || levelIndex >= levels.length) {
@@ -666,38 +659,30 @@ export function createBricks() {
     }
     
     const levelConfig = levels[levelIndex];
+    console.log(`Creating level ${state.level}: ${levelConfig.name}`); // Debug log
     
-    // Apply level settings
-    if (levelConfig.backgroundColor) {
-        state.scene.background = new THREE.Color(levelConfig.backgroundColor);
+    // Special handling for boss level (level 6)
+    if (state.level === 6) {
+        console.log('Creating boss level'); // Debug log
+        const boss = createBossBrick(new THREE.Vector3(0, constants.GAME_HEIGHT/3, 0));
+        state.scene.add(boss);
+        state.bricks.push(boss);
+        applyBarrier();
+        state.barrier = true;
+        console.log('Boss created and barrier applied'); // Debug log
+        return;
     }
-    
-    // Update game constants based on level settings
-    if (levelConfig.paddleSpeed) {
-        constants.PADDLE_SPEED = levelConfig.paddleSpeed;
-    }
-    
-    if (levelConfig.ballSpeed) {
-        constants.BALL_SPEED = levelConfig.ballSpeed;
-        // If the game has already started, we don't modify the ball velocity
-        // Otherwise, set the initial velocity based on the level's ballSpeed
-        if (!state.gameStarted && state.ball) {
-            const speed = levelConfig.ballSpeed;
-            state.ballVelocity.set(speed * 0.25, speed, speed * 0.2);
-        }
-    }
-    
+
     // Configure brick layout based on level
     const rows = levelConfig.brickRows || 4;
     const cols = levelConfig.brickCols || 8;
     const layers = levelConfig.brickLayers || 1;
     
-    // Spacing between bricks
+    // Calculate layout dimensions
     const brickSpacingX = 0.8;
     const brickSpacingY = 1.2;
     const brickSpacingZ = 0.8;
     
-    // Calculate total width and adjust starting positions
     const totalWidth = cols * (constants.BRICK_WIDTH + brickSpacingX) - brickSpacingX;
     const totalDepth = rows * (constants.BRICK_DEPTH + brickSpacingZ) - brickSpacingZ;
     
@@ -705,77 +690,7 @@ export function createBricks() {
     const startY = constants.GAME_HEIGHT/3;
     const startZ = -totalDepth / 2 + constants.BRICK_DEPTH / 2;
     
-    // Store the brick layout data
-    const brickLayoutData = new Array(layers).fill(null).map(() => 
-        new Array(rows).fill(null).map(() => 
-            new Array(cols).fill(null)
-        )
-    );
-    
-    // Populate brick layout based on level definition
-    if (levelConfig.brickLayout) {
-        // Process layout definitions for each brick type
-        for (const [brickType, layoutInfo] of Object.entries(levelConfig.brickLayout)) {
-            if (layoutInfo === 'fill') {
-                // This type will be used to fill any empty spaces later
-                continue;
-            } else if (Array.isArray(layoutInfo)) {
-                // Layout is specified as [[col1, col2, ...], [row1, row2, ...]]
-                // Which means place this brick type at the coordinates [row][col]
-                const colsArray = layoutInfo[0] || [];
-                const rowsArray = layoutInfo[1] || [];
-                
-                for (let layer = 0; layer < layers; layer++) {
-                    for (let rowIndex = 0; rowIndex < rowsArray.length; rowIndex++) {
-                        const row = rowsArray[rowIndex];
-                        if (row < 0 || row >= rows) continue;
-                        
-                        for (let colIndex = 0; colIndex < colsArray.length; colIndex++) {
-                            const col = colsArray[colIndex];
-                            if (col < 0 || col >= cols) continue;
-                            
-                            brickLayoutData[layer][row][col] = brickType;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Fill remaining spaces with the 'fill' type if specified
-        for (const [brickType, layoutInfo] of Object.entries(levelConfig.brickLayout)) {
-            if (layoutInfo === 'fill') {
-                for (let layer = 0; layer < layers; layer++) {
-                    for (let row = 0; row < rows; row++) {
-                        for (let col = 0; col < cols; col++) {
-                            if (brickLayoutData[layer][row][col] === null) {
-                                brickLayoutData[layer][row][col] = brickType;
-                            }
-                        }
-                    }
-                }
-                break; // Only one type can be 'fill'
-            }
-        }
-    } else {
-        // No specific layout defined, use default patterns
-        for (let layer = 0; layer < layers; layer++) {
-            for (let row = 0; row < rows; row++) {
-                for (let col = 0; col < cols; col++) {
-                    // Skip some bricks for visual interest
-                    if ((layer + row + col) % 7 === 0) continue;
-                    
-                    // Default to first brick type in the list
-                    const defaultType = levelConfig.brickTypes && levelConfig.brickTypes.length > 0 
-                        ? levelConfig.brickTypes[0] 
-                        : 'normal';
-                    
-                    brickLayoutData[layer][row][col] = defaultType;
-                }
-            }
-        }
-    }
-    
-    // Create bricks based on the layout data
+    // Create bricks
     for (let layer = 0; layer < layers; layer++) {
         const layerY = startY - layer * (constants.BRICK_HEIGHT + brickSpacingY);
         
@@ -783,51 +698,35 @@ export function createBricks() {
             const rowZ = startZ + row * (constants.BRICK_DEPTH + brickSpacingZ);
             
             for (let col = 0; col < cols; col++) {
-                const brickType = brickLayoutData[layer][row][col];
-                if (!brickType) continue; // Skip if no brick type assigned
+                // Skip some bricks for visual interest in higher levels
+                if (state.level > 3 && (layer + row + col) % 7 === 0) continue;
+                
+                const brickType = levelConfig.brickTypes[
+                    Math.floor(Math.random() * levelConfig.brickTypes.length)
+                ];
                 
                 const brickGeometry = new THREE.BoxGeometry(
-                    constants.BRICK_WIDTH, 
-                    constants.BRICK_HEIGHT, 
+                    constants.BRICK_WIDTH,
+                    constants.BRICK_HEIGHT,
                     constants.BRICK_DEPTH
                 );
                 
-                // Determine brick color and texture based on layer
-                let textureIndex = layer % brickTextures.length;
-                let emissiveColor;
-                
-                // Map color to emissive for each texture
-                switch(textureIndex) {
-                    case 0: emissiveColor = new THREE.Color(0x330033); break; // Dim magenta
-                    case 1: emissiveColor = new THREE.Color(0x003333); break; // Dim cyan
-                    case 2: emissiveColor = new THREE.Color(0x332200); break; // Dim gold
-                }
-                
-                // Get brick type definition from levels.js
                 const brickTypeInfo = brickTypes[brickType] || brickTypes.normal;
                 
-                const brickMaterial = new THREE.MeshPhongMaterial({ 
-                    color: brickTypeInfo.color || 0xffffff, 
+                const brickMaterial = new THREE.MeshPhongMaterial({
+                    color: brickTypeInfo.color || 0xffffff,
                     specular: 0xffffff,
                     shininess: 50,
-                    map: brickTextures[textureIndex],
-                    emissive: emissiveColor,
-                    emissiveIntensity: 0.5
+                    map: createCyberpunkBrickTexture(brickTypeInfo.color)
                 });
                 
                 const brick = new THREE.Mesh(brickGeometry, brickMaterial);
-                
-                // Position the brick
                 brick.position.set(
                     startX + col * (constants.BRICK_WIDTH + brickSpacingX),
                     layerY,
                     rowZ
                 );
                 
-                brick.castShadow = true;
-                brick.receiveShadow = true;
-                
-                // Store metadata with brick type properties
                 brick.userData = {
                     type: brickType,
                     points: brickTypeInfo.points || 10 * (layer + 1),
@@ -836,8 +735,8 @@ export function createBricks() {
                     onDestroy: brickTypeInfo.onDestroy || null
                 };
                 
-                // Create a bounding box for collision detection
-                brick.geometry.computeBoundingBox();
+                brick.castShadow = true;
+                brick.receiveShadow = true;
                 
                 state.scene.add(brick);
                 state.bricks.push(brick);
@@ -850,23 +749,63 @@ export function createBricks() {
         state.powerupChance = levelConfig.powerupChance;
     }
     
-    // Display level information only if we're not in a game reset
+    // Display level information
     if (!state.waitingForStart) {
         const levelMessage = `Level ${state.level}: ${levelConfig.name}`;
         const levelDescription = levelConfig.description || "";
         displayMessage(levelMessage, levelDescription, true);
     }
     
-    console.log(`Level ${state.level} loaded: ${levelConfig.name}`);
+    console.log(`Level ${state.level} loaded with ${state.bricks.length} bricks`);
 }
+
+
+
+
+export function skipLevel() {
+    console.log('Skipping to next level');
+    // Increase level
+    state.level += 1;
+    
+    // Reset game state for new level
+    state.gameStarted = false;
+    state.gameOver = false;
+    state.levelComplete = false;
+    state.waitingForStart = true;
+    
+    // Reset ball and paddle
+    resetBall();
+    
+    // Clear existing bricks
+    state.bricks.forEach(brick => state.scene.remove(brick));
+    state.bricks = [];
+    
+    // Create new level
+    createBricks();
+    
+    // Show level message
+    const levelConfig = levels[state.level - 1];
+    if (levelConfig) {
+        displayMessage(
+            `Level ${state.level}: ${levelConfig.name}`, 
+            levelConfig.description || "", 
+            true
+        );
+    }
+}
+
+
+
 
 // Reset the ball position
 export function resetBall() {
+    // Reset game state flags
     state.gameStarted = false;
-    state.gameInAnimation = false; // Add this line to ensure animation state is reset
-    state.gameOver = false; // Add this to reset game over state
+    state.gameInAnimation = false;
+    state.gameOver = false;
+    state.waitingForStart = true;
     
-    // Reset ball properties immediately
+    // Reset ball properties
     state.ball.visible = true;
     state.ball.scale.set(1, 1, 1);
     
@@ -884,20 +823,20 @@ export function resetBall() {
         0
     );
     
-    // Randomize initial direction
+    // Reset ball velocity with slight randomization
     state.ballVelocity.set(
         (Math.random() - 0.5) * 0.2,
         0.15,                        
         (Math.random() - 0.5) * 0.1
     );
     
-    // Remove fire aura
+    // Remove fire aura if it exists
     if (state.ball.userData.fireAura) {
         state.ball.remove(state.ball.userData.fireAura);
         state.ball.userData.fireAura = null;
     }
 
-    // Remove all active powerups from scene
+    // Remove all active powerups
     if (state.powerups) {
         state.powerups.forEach(powerup => {
             state.scene.remove(powerup);
@@ -912,10 +851,16 @@ export function resetBall() {
         });
         state.extraBalls = [];
     }
+    if (state.level === 6) {
+        applyBarrier();
+        state.barrier = true; // Make barrier permanent
+    }
     
+    // Reset paddle hit counter
     state.paddleHitCount = 0;
-    state.ballVelocity.normalize().multiplyScalar(constants.BALL_SPEED);
     
+    // Set initial ball velocity
+    state.ballVelocity.normalize().multiplyScalar(constants.BALL_SPEED);
 }
 
 // Update all game objects
@@ -928,6 +873,11 @@ export function updateObjects() {
         
         // Update ball physics
         updateBall();
+
+        const boss = state.bricks.find(brick => brick.userData.type === 'boss' && brick.userData.active);
+        if (boss) {
+            updateBossBrick(boss);
+        }
     }
     
     // Update camera positions - cameras can still update even when game is not started
@@ -936,56 +886,6 @@ export function updateObjects() {
 
 // Update ball position and handle collisions
 function updateBall() {
-    // Move the ball according to its velocity
-    state.ball.position.x += state.ballVelocity.x;
-    state.ball.position.y += state.ballVelocity.y;
-    state.ball.position.z += state.ballVelocity.z;
-    
-    // Apply physical rotation to ball mesh
-    state.ball.rotation.x += 0.01;
-    state.ball.rotation.y += 0.03;
-    state.ball.rotation.z += 0.02;
-    
-    // Animate texture - update time for the procedural texture
-    if (state.ball.userData.texture && state.ball.userData.texture.userData) {
-        state.ball.userData.texture.userData.animationData.time += 0.05;
-        state.ball.userData.texture.userData.renderFrame(state.ball.userData.texture.userData.animationData.time);
-        state.ball.userData.texture.needsUpdate = true;
-    }
-    
-    // Also apply UV rotation for extra animation effect
-    if (state.ball.userData.texture) {
-        state.ball.userData.texture.offset.x += 0.002;
-        state.ball.userData.texture.offset.y += 0.001;
-        state.ball.userData.texture.rotation += 0.005;
-        state.ball.userData.texture.needsUpdate = true;
-    }
-
-    // Update fire aura if it exists
-    if (state.ball.userData.fireAura) {
-        state.ball.userData.fireAura.userData.update();
-    }
-    
-    // Handle boundary collisions
-    handleBoundaryCollisions();
-    
-    // Check paddle collision
-    handlePaddleCollision();
-    
-    // Check brick collisions
-    checkBrickCollisions();
-
-    // Update extra balls if they exist
-    if (state.extraBalls) {
-        for (let i = state.extraBalls.length - 1; i >= 0; i--) {
-            const extraBall = state.extraBalls[i];
-            extraBall.position.add(extraBall.userData.velocity);
-            handleExtraBallBoundaries(extraBall, i);
-            handleExtraBallPaddleCollision(extraBall);
-            handleExtraBallBrickCollisions(extraBall);
-        }
-    }
-
     // Check for game over (ball fell)
     if (state.ball.position.y < -constants.GAME_HEIGHT/2) {
         if (state.barrier) {
@@ -995,10 +895,64 @@ function updateBall() {
         } else {
             // Game over with animation
             state.gameOver = true;
-            
+            state.waitingForStart = true;
+            displayMessage("Game Over", "Press Enter to Restart");
             state.ballVelocity.set(0, 0, 0);
             resetBall();
             return;
+        }
+    }
+
+    // Only process movement if game is not over
+    if (!state.gameOver && state.gameStarted) {
+        // Move the ball according to its velocity
+        state.ball.position.x += state.ballVelocity.x;
+        state.ball.position.y += state.ballVelocity.y;
+        state.ball.position.z += state.ballVelocity.z;
+        
+        // Apply physical rotation to ball mesh
+        state.ball.rotation.x += 0.01;
+        state.ball.rotation.y += 0.03;
+        state.ball.rotation.z += 0.02;
+        
+        // Animate texture - update time for the procedural texture
+        if (state.ball.userData.texture && state.ball.userData.texture.userData) {
+            state.ball.userData.texture.userData.animationData.time += 0.05;
+            state.ball.userData.texture.userData.renderFrame(state.ball.userData.texture.userData.animationData.time);
+            state.ball.userData.texture.needsUpdate = true;
+        }
+        
+        // Also apply UV rotation for extra animation effect
+        if (state.ball.userData.texture) {
+            state.ball.userData.texture.offset.x += 0.002;
+            state.ball.userData.texture.offset.y += 0.001;
+            state.ball.userData.texture.rotation += 0.005;
+            state.ball.userData.texture.needsUpdate = true;
+        }
+
+        // Update fire aura if it exists
+        if (state.ball.userData.fireAura) {
+            state.ball.userData.fireAura.userData.update();
+        }
+        
+        // Handle boundary collisions
+        handleBoundaryCollisions();
+        
+        // Check paddle collision
+        handlePaddleCollision();
+        
+        // Check brick collisions
+        checkBrickCollisions();
+
+        // Update extra balls if they exist
+        if (state.extraBalls) {
+            for (let i = state.extraBalls.length - 1; i >= 0; i--) {
+                const extraBall = state.extraBalls[i];
+                extraBall.position.add(extraBall.userData.velocity);
+                handleExtraBallBoundaries(extraBall, i);
+                handleExtraBallPaddleCollision(extraBall);
+                handleExtraBallBrickCollisions(extraBall);
+            }
         }
     }
 }
@@ -1212,6 +1166,34 @@ function handleBrickCollision(brick, brickBox) {
         brick.material.opacity = 0.7;
     }
 
+    if (brick.userData.type === 'boss') {
+        // Damage boss
+        brick.userData.health--;
+        
+        // Show hurt emoji
+        brick.userData.isHurt = true;
+        
+        // Flash color
+        let flashCount = 0;
+        const flashInterval = setInterval(() => {
+            brick.material.color.setHex(flashCount % 2 === 0 ? 0xff0000 : 0x880088);
+            flashCount++;
+            if (flashCount >= 6) { // 3 flashes
+                clearInterval(flashInterval);
+                brick.material.color.setHex(0x880088);
+                brick.userData.isHurt = false;
+            }
+        }, 100);
+        
+        if (brick.userData.health <= 0) {
+            // Boss defeated
+            brick.userData.projectiles.forEach(p => state.scene.remove(p));
+            deactivateBrick(brick);
+            displayMessage("Victory!", "Boss Defeated!", true);
+        }
+        return;
+    }
+
     if (state.ball.userData.explosive) {
         // Get all bricks within radius
         const explosionRadius = constants.BRICK_WIDTH * 2;
@@ -1320,6 +1302,7 @@ function deactivateBrick(brick) {
     // Check if level is complete
     checkLevelComplete();
 }
+
 
 // Animate brick destruction
 function animateBrickDestruction(brick) {
@@ -1544,6 +1527,22 @@ function handleExtraBallBrickCollisions(ball) {
             break;
         }
     }
+    if (brick.userData.type === 'boss') {
+        // Damage boss directly
+        brick.userData.health--;
+        brick.material.emissiveIntensity = 1;
+        setTimeout(() => {
+            brick.material.emissiveIntensity = 0;
+        }, 100);
+        
+        if (brick.userData.health <= 0) {
+            // Boss defeated
+            brick.userData.projectiles.forEach(p => state.scene.remove(p));
+            deactivateBrick(brick);
+            displayMessage("Victory!", "Boss Defeated!", true);
+        }
+        return;
+    }
 }
 
 // Update camera positions
@@ -1688,4 +1687,334 @@ export function displayHitStreak(hitCount) {
 }
 
 
+function createBossBrick(position) {
+    const geometry = new THREE.BoxGeometry(
+        constants.BRICK_WIDTH * 4,
+        constants.BRICK_HEIGHT * 4,
+        constants.BRICK_DEPTH * 4
+    );
+    
+    const material = new THREE.MeshPhongMaterial({
+        color: 0x880088,
+        emissive: 0x330033,
+        metalness: 0.8
+    });
+    
+    const boss = new THREE.Mesh(geometry, material);
+    boss.position.copy(position);
+    
+    // Create canvas for emoji texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    material.map = texture;
+    
+    const happyEmojis = [':D', ':-)', '>:)', '( ͡° ͜ʖ ͡°)'];
+    const hurtEmojis = ['(ᗒᗣᗕ)', '(╥﹏╥)', '(¬,¬)'];
+    
+    boss.userData = {
+        type: 'boss',
+        health: 5,
+        points: 1000,
+        lastShotTime: 0,
+        shotInterval: 2000,
+        projectiles: [],
+        active: true,
+        isHurt: false,
+        currentEmoji: 0,
+        lastEmojiChange: 0,
+        emojiChangeInterval: 2000, // Change emoji every 2 seconds
+        canvas: canvas,
+        ctx: ctx,
+        texture: texture,
+        
+        updateEmoji: function() {
+    const currentTime = Date.now();
+    
+    // Clear canvas
+    this.ctx.fillStyle = this.isHurt ? '#ff0000' : '#880088';
+    this.ctx.fillRect(0, 0, 512, 512);
+    
+    // Draw emoji
+    this.ctx.font = '180px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    
+    // If hurt and no hurt emoji selected, pick one and store it
+    if (this.isHurt && !this.currentHurtEmoji) {
+        this.currentHurtEmoji = hurtEmojis[Math.floor(Math.random() * hurtEmojis.length)];
+    }
+    
+    // Use either the stored hurt emoji or cycle through happy emojis
+    const emoji = this.isHurt ? 
+        this.currentHurtEmoji :
+        happyEmojis[this.currentEmoji];
+    
+    // Add white outline
+    this.ctx.strokeStyle = '#ffffff';
+    this.ctx.lineWidth = 8;
+    this.ctx.strokeText(emoji, 256, 256);
+    
+    // Fill with black
+    this.ctx.fillStyle = '#000000';    
+    this.ctx.fillText(emoji, 256, 256);
+    
+    // Only change emoji when not hurt
+    if (!this.isHurt && currentTime - this.lastEmojiChange > this.emojiChangeInterval) {
+        this.currentEmoji = (this.currentEmoji + 1) % happyEmojis.length;
+        this.lastEmojiChange = currentTime;
+        this.currentHurtEmoji = null; // Reset hurt emoji when returning to happy state
+    }
+    
+    // Update texture
+    this.texture.needsUpdate = true;
+}
+    };
+    
+    return boss;
+}
 
+function updateBossBrick(boss) {
+    // Update emoji
+    boss.userData.updateEmoji();
+    
+    // Fire projectiles
+    const currentTime = Date.now();
+if (currentTime - boss.userData.lastShotTime > boss.userData.shotInterval) {
+        // Alternate between projectiles and thunder
+        if (!boss.userData.lastAttackWasThunder) {
+            createThunderAttack(boss);
+            boss.userData.lastAttackWasThunder = true;
+        } else {
+            fireProjectile(boss);
+            boss.userData.lastAttackWasThunder = false;
+        }
+        boss.userData.lastShotTime = currentTime;
+    }
+    
+    // Update existing projectiles
+    updateProjectiles(boss);
+}
+
+
+function fireProjectile(boss) {
+    // Increased projectile size
+    const projectileGeometry = new THREE.SphereGeometry(0.4); // Doubled from 0.2
+    const projectileMaterial = new THREE.MeshPhongMaterial({
+        color: 0xff0000,
+        emissive: 0xff0000,
+        emissiveIntensity: 1
+    });
+    
+    // Fire 3 projectiles in a spread pattern
+    const spreadAngles = [-0.3, 0, 0.3]; // Spread angles for multiple projectiles
+    
+    spreadAngles.forEach(angle => {
+        // Create projectile mesh
+        const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+        projectile.position.copy(boss.position);
+        
+        // Add point light to projectile for glow effect
+        const projectileLight = new THREE.PointLight(0xff0000, 1.5, 3); // Increased light intensity and range
+        projectile.add(projectileLight);
+        
+        // Aim at paddle with spread
+        const direction = state.paddle.position.clone()
+            .sub(boss.position)
+            .normalize();
+        
+        // Apply spread angle
+        const rotatedDirection = direction.clone();
+        rotatedDirection.x = direction.x * Math.cos(angle) - direction.z * Math.sin(angle);
+        rotatedDirection.z = direction.x * Math.sin(angle) + direction.z * Math.cos(angle);
+        
+        // Add slight randomization
+        rotatedDirection.x += (Math.random() - 0.5) * 0.05;
+        rotatedDirection.z += (Math.random() - 0.5) * 0.05;
+        rotatedDirection.normalize();
+        
+        // Set projectile properties
+        projectile.userData = {
+            velocity: rotatedDirection.multiplyScalar(0.3),
+            isProjectile: true,
+            light: projectileLight
+        };
+        
+        // Add to scene and boss's projectiles array
+        state.scene.add(projectile);
+        boss.userData.projectiles.push(projectile);
+    });
+    
+    // Add shooting effect
+    createShootingEffect(boss.position);
+}
+
+// Add this helper function for visual effect
+function createShootingEffect(position) {
+    const particles = new THREE.Points(
+        new THREE.BufferGeometry(),
+        new THREE.PointsMaterial({
+            color: 0xff0000,
+            size: 0.1,
+            blending: THREE.AdditiveBlending,
+            transparent: true
+        })
+    );
+
+    const particleCount = 20;
+    const positions = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        positions[i3] = position.x + (Math.random() - 0.5) * 0.5;
+        positions[i3 + 1] = position.y + (Math.random() - 0.5) * 0.5;
+        positions[i3 + 2] = position.z + (Math.random() - 0.5) * 0.5;
+    }
+
+    particles.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    state.scene.add(particles);
+
+    // Animate and remove particles
+    setTimeout(() => state.scene.remove(particles), 200);
+}
+
+
+
+function updateProjectiles(boss) {
+    for (let i = boss.userData.projectiles.length - 1; i >= 0; i--) {
+        const projectile = boss.userData.projectiles[i];
+        projectile.position.add(projectile.userData.velocity);
+        
+        // Check collision with paddle
+        const paddleBox = new THREE.Box3().setFromObject(state.paddle);
+        const projectileBox = new THREE.Box3().setFromObject(projectile);
+        
+        if (projectileBox.intersectsBox(paddleBox)) {
+            // Hit paddle - game over
+            state.gameOver = true;
+            state.waitingForStart = true;
+            displayMessage("Game Over", "Hit by boss projectile! Press Enter to Restart");
+            boss.userData.projectiles.forEach(p => state.scene.remove(p));
+            boss.userData.projectiles = [];
+            resetBall();
+            return;
+        }
+        
+        // Remove if out of bounds
+        if (projectile.position.y < -constants.GAME_HEIGHT/2) {
+            state.scene.remove(projectile);
+            boss.userData.projectiles.splice(i, 1);
+        }
+    }
+}
+
+
+function createThunderAttack(boss) {
+    const thunderGeometry = new THREE.CylinderGeometry(0.1, 0.1, constants.GAME_HEIGHT, 8);
+    const thunderMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 0.8,
+        emissive: 0x00ffff,
+        emissiveIntensity: 1
+    });
+
+    // Create 3 random positions for the thunder strikes
+    for (let i = 0; i < 3; i++) {
+        const x = (Math.random() - 0.5) * constants.GAME_WIDTH * 0.8;
+        const z = (Math.random() - 0.5) * constants.GAME_DEPTH * 0.8;
+        const warningY = -constants.GAME_HEIGHT/2 + constants.PADDLE_HEIGHT; // Place at paddle height
+
+        // Create warning exclamation mark
+        const warningGroup = new THREE.Group();
+        
+        // Create larger exclamation mark
+        const lineGeometry = new THREE.PlaneGeometry(0.3, 1.2); // Made bigger
+        const line = new THREE.Mesh(lineGeometry, new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 1
+        }));
+        line.position.y = 0.6;
+
+        const dotGeometry = new THREE.CircleGeometry(0.2, 32); // Made bigger
+        const dot = new THREE.Mesh(dotGeometry, new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 1
+        }));
+        dot.position.y = -0.2;
+
+        warningGroup.add(line);
+        warningGroup.add(dot);
+        
+        // Position warning sign at paddle height
+        warningGroup.position.set(x, warningY + 1, z); // Raised slightly above paddle height
+        state.scene.add(warningGroup);
+
+        // Add warning light
+        const warningLight = new THREE.PointLight(0xff0000, 1, 3);
+        warningLight.position.copy(warningGroup.position);
+        state.scene.add(warningLight);
+
+        // Animate warning
+        let warningPhase = 0;
+        const warningInterval = setInterval(() => {
+            warningPhase += 0.1;
+            const scale = 1 + Math.sin(warningPhase * 5) * 0.2;
+            warningGroup.scale.set(scale, scale, 1);
+            const opacity = 0.5 + Math.sin(warningPhase * 5) * 0.5;
+            line.material.opacity = opacity;
+            dot.material.opacity = opacity;
+            warningLight.intensity = opacity * 2;
+        }, 16);
+
+        // After warning, create thunder
+        setTimeout(() => {
+            clearInterval(warningInterval);
+            state.scene.remove(warningGroup);
+            state.scene.remove(warningLight);
+            line.material.dispose();
+            dot.material.dispose();
+
+            // Create thunder strike
+            const thunder = new THREE.Mesh(thunderGeometry, thunderMaterial.clone());
+            thunder.position.set(x, 0, z);
+            state.scene.add(thunder);
+
+            // Add lightning effect
+            const lightningLight = new THREE.PointLight(0x00ffff, 2, 10);
+            lightningLight.position.set(x, 0, z);
+            state.scene.add(lightningLight);
+
+            // Check player hit
+            const paddlePos = state.paddle.position;
+            const hitDistance = 1.5;
+            if (Math.abs(paddlePos.x - x) < hitDistance && 
+                Math.abs(paddlePos.z - z) < hitDistance) {
+                state.gameOver = true;
+                state.waitingForStart = true;
+                displayMessage("Game Over", "Struck by lightning! Press Enter to Restart");
+                resetBall();
+            }
+
+            // Animate thunder strike
+            let opacity = 1;
+            const strikeInterval = setInterval(() => {
+                thunder.material.opacity = opacity;
+                lightningLight.intensity = opacity * 2;
+                opacity -= 0.1;
+                if (opacity <= 0) {
+                    clearInterval(strikeInterval);
+                    state.scene.remove(thunder);
+                    state.scene.remove(lightningLight);
+                    thunder.material.dispose();
+                }
+            }, 50);
+        }, 1000);
+    }
+}
