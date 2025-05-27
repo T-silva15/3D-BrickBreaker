@@ -86,6 +86,10 @@ function handleKeyDown(event) {
                 window.resetGame();
             }
             break;
+        case 'n':
+            // Toggle next level
+            skipLevel();
+            break;
     }
 }
 
