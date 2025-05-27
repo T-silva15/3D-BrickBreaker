@@ -103,6 +103,18 @@ export const levels = [
             chainReaction: true,
             explosionRadius: 3
         }
+    },
+    {
+        name: "Boss Battle",
+        description: "Defeat the Core Guardian! Hit the glowing weak spot to deal damage.",
+        backgroundColor: 0x000510,
+        brickRows: 1,
+        brickCols: 1,
+        brickTypes: ['boss'],
+        powerupChance: 0,
+        brickLayout: {
+            'boss': [[1]] // Single boss brick in the center
+        }
     }
 ];
 
@@ -139,5 +151,13 @@ export const brickTypes = {
         material: 'standard',
         color: 0xffff00,
         onDestroy: 'triggerEffect'
+    },
+        boss: {
+        color: 0x880088,
+        health: 5,
+        points: 1000,
+        size: 4,
+        onUpdate: 'boss',
+        onHit: 'boss'
     }
 };
