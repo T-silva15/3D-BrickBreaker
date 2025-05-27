@@ -2,6 +2,7 @@ import { state } from './game.js';
 import { toggleCameraType, cycleCamera } from './cameras.js';
 import { toggleLight, toggleHelpers } from './lighting.js';
 import { toggleTrajectory } from './trajectory.js';
+import { skipLevel } from './objects.js';
 
 // Setup input listeners for keyboard and mouse
 export function setupInputListeners() {
