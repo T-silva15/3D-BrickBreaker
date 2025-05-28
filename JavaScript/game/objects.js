@@ -660,16 +660,13 @@ export function createBricks() {
     
     const levelConfig = levels[levelIndex];
     console.log(`Creating level ${state.level}: ${levelConfig.name}`); // Debug log
-    
-    // Special handling for boss level (level 6)
+      // Special handling for boss level (level 6)
     if (state.level === 6) {
         console.log('Creating boss level'); // Debug log
         const boss = createBossBrick(new THREE.Vector3(0, constants.GAME_HEIGHT/3, 0));
         state.scene.add(boss);
         state.bricks.push(boss);
-        applyBarrier();
-        state.barrier = true;
-        console.log('Boss created and barrier applied'); // Debug log
+        console.log('Boss created'); // Debug log
         return;
     }
 
@@ -872,18 +869,12 @@ export function resetBall() {
             state.scene.remove(powerup);
         });
         state.powerups = [];
-    }
-
-    // Remove all extra balls
+    }    // Remove all extra balls
     if (state.extraBalls) {
         state.extraBalls.forEach(ball => {
             state.scene.remove(ball);
         });
         state.extraBalls = [];
-    }
-    if (state.level === 6) {
-        applyBarrier();
-        state.barrier = true; // Make barrier permanent
     }
     
     // Reset paddle hit counter
