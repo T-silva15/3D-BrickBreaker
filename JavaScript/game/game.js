@@ -6,6 +6,7 @@ import { setupInputListeners } from './controls.js';
 import { createTrajectoryLine } from './trajectory.js';
 import { createGameUI, displayMessage, addDisplayGalleryButton } from './ui.js';
 import { createDisplayGallery, exitDisplayMode } from './display.js';
+import { initAudio } from './audio.js';
 
 // Global state
 export const state = {
@@ -88,8 +89,10 @@ export function initGame(level) {
     state.renderer.setSize(window.innerWidth, window.innerHeight);
     state.renderer.shadowMap.enabled = true;
     document.body.appendChild(state.renderer.domElement);
-    
-    try {
+      try {
+        // Initialize audio system
+        initAudio();
+        
         // Setup cameras - now the renderer exists
         setupCameras();
         

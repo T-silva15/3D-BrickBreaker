@@ -3,6 +3,7 @@ import { state, constants } from './game.js';
 import {     createFireAura, applyBarrier, applyExplosiveBall, updatePowerups,    applyMultiBall ,createPowerUp, POWERUP_TYPE, applyPaddleSizeUp, applyPaddleDoubleSize } from './powerups.js';
 import { levels, brickTypes } from './levels.js';
 import { displayMessage } from './ui.js';
+import { playBallPaddleHit, playBallWallHit, playBrickHit, playBrickDestroy, playPowerupSpawn, playPowerupCollect, playGameOver, playLevelComplete, playThunderStrike, playProjectileShoot } from './audio.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 const fontLoader = new FontLoader();
@@ -986,13 +987,16 @@ function updateBall() {
         if (state.barrier) {
             // Bounce off barrier instead of game over
             state.ballVelocity.y = Math.abs(state.ballVelocity.y);
-            state.ball.position.y = -constants.GAME_HEIGHT/2 + constants.BALL_RADIUS;
-        } else {
+            state.ball.position.y = -constants.GAME_HEIGHT/2 + constants.BALL_RADIUS;        } else {
             // Game over with animation
             state.gameOver = true;
             state.waitingForStart = true;
             displayMessage("Game Over", "Press Enter to Restart");
             state.ballVelocity.set(0, 0, 0);
+            
+            // Play game over sound
+            playGameOver();
+            
             resetBall();
             return;
         }
@@ -1091,16 +1095,21 @@ function handleExtraBallBoundaries(ball, index) {
 // Handle ball collisions with boundaries
 function handleBoundaryCollisions() {
     const position = state.ball.position.clone();
-    
-    // X boundaries (left/right walls)
+      // X boundaries (left/right walls)
     if (position.x > constants.GAME_WIDTH/2 - constants.BALL_RADIUS) {
         state.ballVelocity.x *= -1;
         position.x = constants.GAME_WIDTH/2 - constants.BALL_RADIUS;
         createWallCollisionEffect(position, new THREE.Vector3(-1, 0, 0));
+        // Play wall hit sound
+        const velocity = state.ballVelocity.length() / constants.BALL_SPEED;
+        playBallWallHit(velocity);
     } else if (position.x < -constants.GAME_WIDTH/2 + constants.BALL_RADIUS) {
         state.ballVelocity.x *= -1;
         position.x = -constants.GAME_WIDTH/2 + constants.BALL_RADIUS;
         createWallCollisionEffect(position, new THREE.Vector3(1, 0, 0));
+        // Play wall hit sound
+        const velocity = state.ballVelocity.length() / constants.BALL_SPEED;
+        playBallWallHit(velocity);
     }
     
     // Y boundaries (top)
@@ -1108,6 +1117,9 @@ function handleBoundaryCollisions() {
         state.ballVelocity.y *= -1;
         position.y = constants.GAME_HEIGHT/2 - constants.BALL_RADIUS;
         createWallCollisionEffect(position, new THREE.Vector3(0, -1, 0));
+        // Play wall hit sound
+        const velocity = state.ballVelocity.length() / constants.BALL_SPEED;
+        playBallWallHit(velocity);
     }
     
     // Z boundaries (back/front walls)
@@ -1115,10 +1127,15 @@ function handleBoundaryCollisions() {
         state.ballVelocity.z *= -1;
         position.z = -constants.GAME_DEPTH/2 + constants.BALL_RADIUS;
         createWallCollisionEffect(position, new THREE.Vector3(0, 0, 1));
-    } else if (position.z > constants.GAME_DEPTH/2 - constants.BALL_RADIUS) {
-        state.ballVelocity.z *= -1;
+        // Play wall hit sound
+        const velocity = state.ballVelocity.length() / constants.BALL_SPEED;
+        playBallWallHit(velocity);
+    } else if (position.z > constants.GAME_DEPTH/2 - constants.BALL_RADIUS) {        state.ballVelocity.z *= -1;
         position.z = constants.GAME_DEPTH/2 - constants.BALL_RADIUS;
         createWallCollisionEffect(position, new THREE.Vector3(0, 0, -1));
+        // Play wall hit sound
+        const velocity = state.ballVelocity.length() / constants.BALL_SPEED;
+        playBallWallHit(velocity);
     }
 }
 
@@ -1179,9 +1196,12 @@ function handlePaddleCollision() {
                 state.ballVelocity.z = Math.sign(paddleImpactZ) * Math.abs(state.ballVelocity.z);
             }
         }
-        
-        // Normalize velocity to maintain constant speed
+          // Normalize velocity to maintain constant speed
         state.ballVelocity.normalize().multiplyScalar(constants.BALL_SPEED);
+        
+        // Play paddle hit sound with velocity-based pitch and volume
+        const velocity = state.ballVelocity.length() / constants.BALL_SPEED;
+        playBallPaddleHit(velocity);
         
         // Update fire aura if it exists
         if (state.ball.userData.fireAura) {
@@ -1245,11 +1265,13 @@ function handleBrickCollision(brick, brickBox) {
     } else {
         // Z-axis collision (front or back)
         state.ballVelocity.z *= -1;
-    }
-      // Handle special brick types first
+    }    // Handle special brick types first
     if (brick.userData.type === 'boss') {
         // Damage boss
         brick.userData.health--;
+        
+        // Play boss hit sound
+        playBrickHit(1.2, 'boss');
         
         // Show hurt emoji
         brick.userData.isHurt = true;
@@ -1265,18 +1287,22 @@ function handleBrickCollision(brick, brickBox) {
                 brick.userData.isHurt = false;
             }
         }, 100);
-        
-        if (brick.userData.health <= 0) {
+          if (brick.userData.health <= 0) {
             // Boss defeated
             brick.userData.projectiles.forEach(p => state.scene.remove(p));
             deactivateBrick(brick);
+            
+            // Play victory sound for boss defeat
+            playLevelComplete();
+            
             displayMessage("Victory!", "Boss Defeated!", true);
         }
         return;
-    }
-
-    // Handle explosive ball collision
+    }    // Handle explosive ball collision
     if (state.ball.userData.explosive) {
+        // Play explosive sound
+        playBrickDestroy(1.5, 'explosive');
+        
         // Get all bricks within radius
         const explosionRadius = constants.BRICK_WIDTH * 2;
         const brickCenter = new THREE.Vector3();
@@ -1293,12 +1319,22 @@ function handleBrickCollision(brick, brickBox) {
                     deactivateBrick(nearbyBrick);
                 }
             }
-        });
-    } else {
+        });} else {
         // Normal brick collision - add score and decrease hit count
         state.score += brick.userData.points;
         brick.userData.hits--;
-          // Deactivate brick if no more hits left
+        
+        // Play appropriate brick hit sound based on type and remaining hits
+        const velocity = state.ballVelocity.length() / constants.BALL_SPEED;
+        if (brick.userData.hits <= 0) {
+            // Brick will be destroyed - play destruction sound
+            playBrickDestroy(velocity, brick.userData.type);
+        } else {
+            // Brick hit but not destroyed - play hit sound
+            playBrickHit(velocity, brick.userData.type);
+        }
+        
+        // Deactivate brick if no more hits left
         if (brick.userData.hits <= 0) {
             deactivateBrick(brick);
         } else {
@@ -1351,8 +1387,7 @@ function deactivateBrick(brick) {
                     }
                 });
                 break;
-                
-            case 'triggerEffect':
+                  case 'triggerEffect':
                 // Apply a special game effect
                 if (Math.random() < 0.5) {
                     // 50% chance to create a multi-ball
@@ -1361,6 +1396,8 @@ function deactivateBrick(brick) {
                     state.powerups = state.powerups || [];
                     state.powerups.push(powerUp);
                     state.scene.add(powerUp);
+                    // Play power-up spawn sound
+                    playPowerupSpawn();
                 } else {
                     // 50% chance to create explosive ball
                     const powerUp = createPowerUp(brick.position.clone(), POWERUP_TYPE.EXPLOSIVE_BALL);
@@ -1368,12 +1405,13 @@ function deactivateBrick(brick) {
                     state.powerups = state.powerups || [];
                     state.powerups.push(powerUp);
                     state.scene.add(powerUp);
+                    // Play power-up spawn sound
+                    playPowerupSpawn();
                 }
                 break;
         }
     }
-    
-    // Chance to spawn a powerup based on level's powerupChance
+      // Chance to spawn a powerup based on level's powerupChance
     if (Math.random() < powerupChance) {
         // Randomly choose powerup type
         const powerupTypes = [
@@ -1389,6 +1427,9 @@ function deactivateBrick(brick) {
         state.powerups = state.powerups || []; // Initialize powerups array if needed
         state.powerups.push(powerUp);
         state.scene.add(powerUp);
+        
+        // Play power-up spawn sound
+        playPowerupSpawn();
     }
     
     // Add destruction animation
@@ -1419,9 +1460,11 @@ function animateBrickDestruction(brick) {
 // Check if all bricks are destroyed
 function checkLevelComplete() {
     const activeBricks = state.bricks.filter(brick => brick.userData.active);
-    
-    if (activeBricks.length === 0) {
+      if (activeBricks.length === 0) {
         state.levelComplete = true;
+        
+        // Play level complete sound
+        playLevelComplete();
         
         // Increase level
         state.level = Math.min(state.level + 1, constants.MAX_LEVELS);
@@ -1515,10 +1558,12 @@ function updatePaddle() {
                 state.powerups.splice(i, 1);
                 continue;
             }
-            
-            // Check collision with paddle
+              // Check collision with paddle
             const powerupBox = new THREE.Box3().setFromObject(powerup);
             if (powerupBox.intersectsBox(paddleBox)) {
+                // Play power-up collection sound
+                playPowerupCollect();
+                
                 // Apply powerup effect
                 if (powerup.userData.type === POWERUP_TYPE.PADDLE_DOUBLE_SIZE) {
                     applyPaddleDoubleSize();
@@ -1881,6 +1926,9 @@ if (currentTime - boss.userData.lastShotTime > boss.userData.shotInterval) {
 
 
 function fireProjectile(boss) {
+    // Play projectile shooting sound
+    playProjectileShoot();
+    
     // Increased projectile size
     const projectileGeometry = new THREE.SphereGeometry(0.4); // Doubled from 0.2
     const projectileMaterial = new THREE.MeshPhongMaterial({
@@ -1971,12 +2019,15 @@ function updateProjectiles(boss) {
         // Check collision with paddle
         const paddleBox = new THREE.Box3().setFromObject(state.paddle);
         const projectileBox = new THREE.Box3().setFromObject(projectile);
-        
-        if (projectileBox.intersectsBox(paddleBox)) {
+          if (projectileBox.intersectsBox(paddleBox)) {
             // Hit paddle - game over
             state.gameOver = true;
             state.waitingForStart = true;
             displayMessage("Game Over", "Hit by boss projectile! Press Enter to Restart");
+            
+            // Play game over sound
+            playGameOver();
+            
             boss.userData.projectiles.forEach(p => state.scene.remove(p));
             boss.userData.projectiles = [];
             resetBall();
@@ -2050,9 +2101,7 @@ function createThunderAttack(boss) {
             line.material.opacity = opacity;
             dot.material.opacity = opacity;
             warningLight.intensity = opacity * 2;
-        }, 16);
-
-        // After warning, create thunder
+        }, 16);        // After warning, create thunder
         setTimeout(() => {
             clearInterval(warningInterval);
             state.scene.remove(warningGroup);
@@ -2065,6 +2114,9 @@ function createThunderAttack(boss) {
             thunder.position.set(x, 0, z);
             state.scene.add(thunder);
 
+            // Play thunder strike sound
+            playThunderStrike();
+
             // Add lightning effect
             const lightningLight = new THREE.PointLight(0x00ffff, 2, 10);
             lightningLight.position.set(x, 0, z);
@@ -2072,12 +2124,15 @@ function createThunderAttack(boss) {
 
             // Check player hit
             const paddlePos = state.paddle.position;
-            const hitDistance = 1.5;
-            if (Math.abs(paddlePos.x - x) < hitDistance && 
+            const hitDistance = 1.5;            if (Math.abs(paddlePos.x - x) < hitDistance && 
                 Math.abs(paddlePos.z - z) < hitDistance) {
                 state.gameOver = true;
                 state.waitingForStart = true;
                 displayMessage("Game Over", "Struck by lightning! Press Enter to Restart");
+                
+                // Play game over sound
+                playGameOver();
+                
                 resetBall();
             }
 
