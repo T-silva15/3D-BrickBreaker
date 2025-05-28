@@ -659,9 +659,8 @@ export function createBricks() {
     }
     
     const levelConfig = levels[levelIndex];
-    console.log(`Creating level ${state.level}: ${levelConfig.name}`); // Debug log
-      // Special handling for boss level (level 6)
-    if (state.level === 6) {
+    console.log(`Creating level ${state.level}: ${levelConfig.name}`); // Debug log      // Special handling for boss level (level 5)
+    if (state.level === 5) {
         console.log('Creating boss level'); // Debug log
         const boss = createBossBrick(new THREE.Vector3(0, constants.GAME_HEIGHT/3, 0));
         state.scene.add(boss);

@@ -73,33 +73,8 @@ export const levels = [
             movingBricks: true,
             movePattern: 'horizontal',
             moveSpeed: 0.1
-        }
-    },
+        }    },
     {
-        name: "Desafio Final",
-        description: "Todos os tipos de tijolos em movimento!",
-        brickRows: 6,
-        brickCols: 12,
-        brickTypes: ['metal', 'strong', 'explosive', 'trigger', 'normal'],
-        pattern: 'complex',        brickLayout: {
-            metal: [[0,11], [0,11]], // corners
-            trigger: [[5,6], [4,7]], // center
-            explosive: [[2,3,8,9], [2,3,8,9]], // strategic positions
-            strong: [[1,4,7,10], [1,4,7,10]], // distributed
-            normal: 'fill'
-        },
-        paddleSpeed: 0.6,
-        ballSpeed: 0.3,
-        backgroundColor: 0x331144,
-        powerupChance: 0.3,
-        specialFeatures: {
-            movingBricks: true,
-            movePattern: 'complex',
-            moveSpeed: 0.15,
-            chainReaction: true,
-            explosionRadius: 3
-        }
-    },    {
         name: "Boss Battle",
         description: "Defeat the Core Guardian! Hit the glowing weak spot to deal damage.",
         backgroundColor: 0x000510,
