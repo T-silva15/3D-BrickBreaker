@@ -708,13 +708,18 @@ export function createBricks() {
                 );
                 
                 const brickTypeInfo = brickTypes[brickType] || brickTypes.normal;
-                
-                const brickMaterial = new THREE.MeshPhongMaterial({
+                  const brickMaterial = new THREE.MeshPhongMaterial({
                     color: brickTypeInfo.color || 0xffffff,
                     specular: 0xffffff,
                     shininess: 50,
                     map: createCyberpunkBrickTexture(brickTypeInfo.color)
                 });
+                
+                // Special material for moving bricks with glow effect
+                if (brickType === 'moving') {
+                    brickMaterial.emissive = new THREE.Color(0x004444);
+                    brickMaterial.emissiveIntensity = 0.3;
+                }
                 
                 const brick = new THREE.Mesh(brickGeometry, brickMaterial);
                 brick.position.set(
@@ -722,14 +727,41 @@ export function createBricks() {
                     layerY,
                     rowZ
                 );
-                
-                brick.userData = {
+                  brick.userData = {
                     type: brickType,
                     points: brickTypeInfo.points || 10 * (layer + 1),
                     hits: brickTypeInfo.health || 1,
                     active: true,
                     onDestroy: brickTypeInfo.onDestroy || null
-                };
+                };                // Add moving data for level 4 (Parede Móvel)
+                if (levelConfig.specialFeatures?.movingBricks) {
+                    // Assign different movement patterns to different brick types
+                    let pattern = 'horizontal'; // default
+                    if (brickType === 'moving') {
+                        // Moving bricks get varied patterns
+                        const patterns = ['horizontal', 'vertical', 'circular', 'zigzag'];
+                        pattern = patterns[Math.floor(Math.random() * patterns.length)];
+                    } else {
+                        // Other bricks use the level's default pattern
+                        pattern = levelConfig.specialFeatures.movePattern || 'horizontal';
+                    }
+                    
+                    brick.userData.moving = {
+                        pattern: pattern,
+                        speed: levelConfig.specialFeatures.moveSpeed || 0.1,
+                        direction: Math.random() > 0.5 ? 1 : -1, // Random initial direction
+                        originalPosition: brick.position.clone(),
+                        timeOffset: Math.random() * Math.PI * 2 // Random phase for smoother movement
+                    };
+                    
+                    // Add a glowing light to moving bricks for better visibility
+                    if (brickType === 'moving') {
+                        const brickLight = new THREE.PointLight(0x00ffff, 1, 5);
+                        brickLight.position.set(0, 0, 0);
+                        brick.add(brickLight);
+                        brick.userData.light = brickLight;
+                    }
+                }
                 
                 brick.castShadow = true;
                 brick.receiveShadow = true;
@@ -884,8 +916,7 @@ export function resetBall() {
 }
 
 // Update all game objects
-export function updateObjects() {
-    // Only update paddle if game is started, not level complete or game over
+export function updateObjects() {    // Only update paddle if game is started, not level complete or game over
     if (state.gameStarted && !state.levelComplete && !state.gameOver) {
         // Update paddle position
         updatePaddle();
@@ -898,6 +929,9 @@ export function updateObjects() {
         if (boss) {
             updateBossBrick(boss);
         }
+        
+        // Update moving bricks if they exist
+        updateMovingBricks();
     }
     
     // Update camera positions - cameras can still update even when game is not started
@@ -2037,4 +2071,63 @@ function createThunderAttack(boss) {
             }, 50);
         }, 1000);
     }
+}
+
+// Update moving bricks for level 4 (Parede Móvel)
+function updateMovingBricks() {
+    const currentTime = Date.now() * 0.001; // Convert to seconds
+    
+    state.bricks.forEach(brick => {
+        // Only update active bricks that have moving data
+        if (!brick.userData.active || !brick.userData.moving) return;
+        
+        const movingData = brick.userData.moving;
+        const timeWithOffset = currentTime + movingData.timeOffset;
+        
+        switch (movingData.pattern) {
+            case 'horizontal':
+                // Sinusoidal horizontal movement
+                const horizontalOffset = Math.sin(timeWithOffset * movingData.speed) * 2.0;
+                brick.position.x = movingData.originalPosition.x + horizontalOffset;
+                break;
+                
+            case 'vertical':
+                // Sinusoidal vertical movement
+                const verticalOffset = Math.sin(timeWithOffset * movingData.speed) * 1.5;
+                brick.position.y = movingData.originalPosition.y + verticalOffset;
+                break;
+                
+            case 'circular':
+                // Circular movement pattern
+                const radius = 1.5;
+                const circularSpeed = movingData.speed * 0.5;
+                brick.position.x = movingData.originalPosition.x + Math.cos(timeWithOffset * circularSpeed) * radius;
+                brick.position.z = movingData.originalPosition.z + Math.sin(timeWithOffset * circularSpeed) * radius;
+                break;
+                
+            case 'zigzag':
+                // Zigzag movement (triangular wave)
+                const zigzagTime = (timeWithOffset * movingData.speed) % (2 * Math.PI);
+                const zigzagOffset = (zigzagTime < Math.PI) ? 
+                    (zigzagTime / Math.PI) * 2.0 - 1.0 : 
+                    (2.0 - zigzagTime / Math.PI) * 2.0 - 1.0;
+                brick.position.x = movingData.originalPosition.x + zigzagOffset;
+                break;
+                
+            default:
+                // Default to horizontal movement
+                const defaultOffset = Math.sin(timeWithOffset * movingData.speed) * 2.0;
+                brick.position.x = movingData.originalPosition.x + defaultOffset;
+        }
+        
+        // Update light intensity for moving bricks with lights
+        if (brick.userData.light) {
+            brick.userData.light.intensity = 1 + Math.sin(currentTime * 4) * 0.3;
+        }
+        
+        // Add slight emissive pulse to moving brick material
+        if (brick.userData.type === 'moving') {
+            brick.material.emissiveIntensity = 0.3 + Math.sin(currentTime * 3) * 0.2;
+        }
+    });
 }

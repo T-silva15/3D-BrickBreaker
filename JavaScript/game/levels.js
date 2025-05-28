@@ -53,16 +53,14 @@ export const levels = [
             chainReaction: true,
             explosionRadius: 2
         }
-    },
-    {
+    },    {
         name: "Parede Móvel",
         description: "Cuidado! Os tijolos se movem!",
         brickRows: 4,
         brickCols: 8,
-        brickTypes: ['metal', 'strong', 'normal'],
+        brickTypes: ['moving', 'metal', 'strong', 'normal'],
         pattern: 'moving',        brickLayout: {
-            metal: [[0,7], [0,7]], // edges
-            strong: [[3,4], [3,4]], // center
+            moving: [[1,6], [1,6]],
             normal: 'fill'
         },
         paddleSpeed: 0.5,
@@ -72,7 +70,7 @@ export const levels = [
         specialFeatures: {
             movingBricks: true,
             movePattern: 'horizontal',
-            moveSpeed: 0.1
+            moveSpeed: 1.6
         }    },
     {
         name: "Boss Battle",
@@ -124,12 +122,19 @@ export const brickTypes = {
         color: 0xffff00,
         onDestroy: 'triggerEffect'
     },
-        boss: {
+    boss: {
         color: 0x880088,
         health: 5,
         points: 1000,
         size: 4,
         onUpdate: 'boss',
         onHit: 'boss'
+    },
+    moving: {
+        health: 2,
+        points: 300,
+        material: 'standard',
+        color: 0x00ffff,
+        specialEffect: 'trail'
     }
 };

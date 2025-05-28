@@ -280,13 +280,22 @@ function createDisplayBricks() {
                 emissive: new THREE.Color(0x333300),
                 emissiveIntensity: 0.7,
                 map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
-            });
-        } else if (brickType === 'strong') {
+            });        } else if (brickType === 'strong') {
             // Green metallic material for strong bricks
             material = new THREE.MeshPhongMaterial({
                 color: baseColor,
                 specular: 0xffffff,
                 shininess: 60,
+                map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
+            });
+        } else if (brickType === 'moving') {
+            // Cyan glowing material for moving bricks
+            material = new THREE.MeshPhongMaterial({
+                color: baseColor,
+                emissive: new THREE.Color(0x004444),
+                emissiveIntensity: 0.4,
+                specular: 0xffffff,
+                shininess: 80,
                 map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
             });
         } else {
@@ -298,8 +307,7 @@ function createDisplayBricks() {
                 map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
             });
         }
-        
-        const brick = new THREE.Mesh(geometry, material);
+          const brick = new THREE.Mesh(geometry, material);
         
         // Position the brick
         brick.position.set(xOffset, 0, zOffset);
@@ -311,19 +319,33 @@ function createDisplayBricks() {
         brick.userData.type = brickType;
         brick.userData.label = getBrickDisplayName(brickType, brickInfo);
         
+        // Add special effects for moving bricks
+        if (brickType === 'moving') {
+            // Add a glowing light
+            const brickLight = new THREE.PointLight(0x00ffff, 1.5, 8);
+            brickLight.position.set(0, 0, 0);
+            brick.add(brickLight);
+            brick.userData.light = brickLight;
+            
+            // Add movement data for demonstration
+            brick.userData.originalPosition = brick.position.clone();
+            brick.userData.moveSpeed = 0.02;
+            brick.userData.movePattern = 'horizontal';
+        }
+        
         displayState.scene.add(brick);
         displayState.objects.push(brick);
     });
 }
 
 // Helper function to get user-friendly brick names
-function getBrickDisplayName(brickType, brickInfo) {
-    const names = {
+function getBrickDisplayName(brickType, brickInfo) {    const names = {
         normal: `Normal Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
         strong: `Strong Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
         metal: `Metal Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
         explosive: `Explosive Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
         trigger: `Trigger Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
+        moving: `Moving Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
         boss: `Boss Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`
     };
     
@@ -511,10 +533,21 @@ function animateDisplay() {
                     object.userData.texture.needsUpdate = true;
                 }
             }
-            
-            // For powerups, add some bobbing motion
+              // For powerups, add some bobbing motion
             if (object.userData.type === "powerup") {
                 object.position.y = 3 + Math.sin(Date.now() * 0.002) * 0.5;
+            }
+            
+            // For moving bricks, demonstrate movement pattern
+            if (object.userData.type === "moving" && object.userData.originalPosition) {
+                const time = Date.now() * 0.001;
+                const moveOffset = Math.sin(time * object.userData.moveSpeed * 10) * 2;
+                object.position.x = object.userData.originalPosition.x + moveOffset;
+                
+                // Pulse the light intensity
+                if (object.userData.light) {
+                    object.userData.light.intensity = 1.5 + Math.sin(time * 3) * 0.5;
+                }
             }
         });
     }
