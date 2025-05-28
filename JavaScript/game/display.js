@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { state, constants } from './game.js';
 import { createPowerUp, POWERUP_TYPE } from './powerups.js';
+import { brickTypes } from './levels.js';
 
 // State for the display mode
 const displayState = {
@@ -23,15 +24,14 @@ export function createDisplayGallery() {
     // Create a new scene
     displayState.scene = new THREE.Scene();
     displayState.scene.background = new THREE.Color(0x111122);
-    
-    // Create a camera specifically for the display
+      // Create a camera specifically for the display
     const camera = new THREE.PerspectiveCamera(
         70, 
         window.innerWidth / window.innerHeight, 
         0.1, 
         1000
     );
-    camera.position.set(0, 5, 20);
+    camera.position.set(0, 8, 30); // Moved back and up to see more spread out objects
     camera.lookAt(0, 0, 0);
     displayState.camera = camera;
     
@@ -93,7 +93,7 @@ function setupDisplayLighting() {
 
 // Create a platform/floor for displaying objects
 function createDisplayPlatform() {
-    const platformGeometry = new THREE.CylinderGeometry(15, 15, 0.5, 32);
+    const platformGeometry = new THREE.CylinderGeometry(25, 25, 0.5, 32); // Increased platform size
     const platformMaterial = new THREE.MeshStandardMaterial({
         color: 0x222244,
         metalness: 0.7,
@@ -106,8 +106,8 @@ function createDisplayPlatform() {
     
     displayState.scene.add(platform);
     
-    // Add a grid for better spatial reference
-    const gridHelper = new THREE.GridHelper(30, 30, 0x444444, 0x222222);
+    // Add a grid for better spatial reference - larger grid
+    const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222);
     gridHelper.position.y = -4.74;
     displayState.scene.add(gridHelper);
 }
@@ -159,8 +159,8 @@ function createDisplayBall() {
     ball.userData.type = "ball";
     ball.userData.label = "Game Ball";
     
-    // Position the ball
-    ball.position.set(-8, 0, 0);
+    // Position the ball - more spaced out
+    ball.position.set(-15, 0, -10);
     
     // Add a small light to the ball
     const ballLight = new THREE.PointLight(0x3366ff, 1.2, 10);
@@ -192,9 +192,8 @@ function createDisplayPaddle() {
         emissive: 0x330066,
         emissiveIntensity: 0.3
     });
-    
-    const paddle = new THREE.Mesh(paddleGeometry, paddleMaterial);
-    paddle.position.set(8, 0, 0);
+      const paddle = new THREE.Mesh(paddleGeometry, paddleMaterial);
+    paddle.position.set(15, 0, -10); // More spaced out from ball
     paddle.castShadow = true;
     paddle.receiveShadow = true;
     paddle.userData.type = "paddle";
@@ -211,49 +210,124 @@ function createDisplayPaddle() {
 
 // Create bricks for display
 function createDisplayBricks() {
-    // Create cyberpunk brick textures with different color variants
-    const brickTextures = [
-        createCyberpunkBrickTexture('#ff00ff'), // Magenta
-        createCyberpunkBrickTexture('#00ffff'), // Cyan
-        createCyberpunkBrickTexture('#ffcc00')  // Gold
-    ];
+    // Get all unique brick types from the game levels
+    const brickTypeNames = Object.keys(brickTypes);
     
-    const emissiveColors = [
-        new THREE.Color(0x330033), // Dim magenta
-        new THREE.Color(0x003333), // Dim cyan
-        new THREE.Color(0x332200)  // Dim gold
-    ];
+    // Create display bricks for each type with proper spacing
+    const bricksPerRow = 3;
+    const spacing = 10; // Increased spacing between bricks
     
-    // Position the bricks in a row at the top
-    for (let i = 0; i < 3; i++) {
-        const brickGeometry = new THREE.BoxGeometry(
-            constants.BRICK_WIDTH, 
-            constants.BRICK_HEIGHT, 
-            constants.BRICK_DEPTH
-        );
+    brickTypeNames.forEach((brickType, index) => {
+        const brickInfo = brickTypes[brickType];
         
-        const brickMaterial = new THREE.MeshPhongMaterial({ 
-            color: 0xffffff,
-            specular: 0xffffff,
-            shininess: 50,
-            map: brickTextures[i],
-            emissive: emissiveColors[i],
-            emissiveIntensity: 0.5
-        });
+        // Calculate position in grid layout
+        const row = Math.floor(index / bricksPerRow);
+        const col = index % bricksPerRow;
+        const xOffset = (col - (bricksPerRow - 1) / 2) * spacing;
+        const zOffset = row * spacing + 5; // Start closer to center, more spread out
         
-        const brick = new THREE.Mesh(brickGeometry, brickMaterial);
+        // Create geometry based on brick type
+        let geometry;
+        if (brickType === 'boss') {
+            // Boss brick is larger
+            geometry = new THREE.BoxGeometry(
+                constants.BRICK_WIDTH * 2,
+                constants.BRICK_HEIGHT * 2,
+                constants.BRICK_DEPTH * 2
+            );
+        } else {
+            geometry = new THREE.BoxGeometry(
+                constants.BRICK_WIDTH,
+                constants.BRICK_HEIGHT,
+                constants.BRICK_DEPTH
+            );
+        }
         
-        // Position in a line at the back
-        brick.position.set((i - 1) * 5, 0, -8);
+        // Create material based on brick type properties
+        let material;
+        const baseColor = brickInfo.color || 0xffffff;
+        
+        if (brickType === 'boss') {
+            // Special boss material with emissive properties
+            material = new THREE.MeshPhongMaterial({
+                color: baseColor,
+                emissive: new THREE.Color(baseColor).multiplyScalar(0.3),
+                emissiveIntensity: 0.6,
+                metalness: 0.8,
+                map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
+            });
+        } else if (brickType === 'metal') {
+            // Metallic material for metal bricks
+            material = new THREE.MeshPhongMaterial({
+                color: baseColor,
+                specular: 0xffffff,
+                shininess: 100,
+                metalness: 0.9,
+                map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
+            });
+        } else if (brickType === 'explosive') {
+            // Glowing red material for explosive bricks
+            material = new THREE.MeshPhongMaterial({
+                color: baseColor,
+                emissive: new THREE.Color(0x330000),
+                emissiveIntensity: 0.8,
+                map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
+            });
+        } else if (brickType === 'trigger') {
+            // Bright yellow material for trigger bricks
+            material = new THREE.MeshPhongMaterial({
+                color: baseColor,
+                emissive: new THREE.Color(0x333300),
+                emissiveIntensity: 0.7,
+                map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
+            });
+        } else if (brickType === 'strong') {
+            // Green metallic material for strong bricks
+            material = new THREE.MeshPhongMaterial({
+                color: baseColor,
+                specular: 0xffffff,
+                shininess: 60,
+                map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
+            });
+        } else {
+            // Normal brick material
+            material = new THREE.MeshPhongMaterial({
+                color: baseColor,
+                specular: 0xffffff,
+                shininess: 50,
+                map: createCyberpunkBrickTexture(`#${baseColor.toString(16).padStart(6, '0')}`)
+            });
+        }
+        
+        const brick = new THREE.Mesh(geometry, material);
+        
+        // Position the brick
+        brick.position.set(xOffset, 0, zOffset);
         
         brick.castShadow = true;
         brick.receiveShadow = true;
-        brick.userData.type = "brick";
-        brick.userData.label = `Brick Type ${i+1}`;
+        
+        // Set brick properties for labels and interaction
+        brick.userData.type = brickType;
+        brick.userData.label = getBrickDisplayName(brickType, brickInfo);
         
         displayState.scene.add(brick);
         displayState.objects.push(brick);
-    }
+    });
+}
+
+// Helper function to get user-friendly brick names
+function getBrickDisplayName(brickType, brickInfo) {
+    const names = {
+        normal: `Normal Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
+        strong: `Strong Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
+        metal: `Metal Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
+        explosive: `Explosive Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
+        trigger: `Trigger Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`,
+        boss: `Boss Brick (${brickInfo.health} HP, ${brickInfo.points} pts)`
+    };
+    
+    return names[brickType] || `${brickType} Brick`;
 }
 
 // Create powerups for display
@@ -273,15 +347,15 @@ function createDisplayPowerups() {
         [POWERUP_TYPE.EXPLOSIVE_BALL]: "Explosive Ball",
         [POWERUP_TYPE.BARRIER]: "Barrier"
     };
-    
-    // Position the powerups in a semi-circle
+      // Position the powerups in a semi-circle with more spacing
     for (let i = 0; i < powerupTypes.length; i++) {
         const angle = (i / powerupTypes.length) * Math.PI;
-        const x = Math.cos(angle) * 8;
-        const z = Math.sin(angle) * 8 + 4; // Offset forward
+        const radius = 12; // Increased radius for more spacing
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius - 5; // Offset back from center
         
         const powerup = createPowerUp(new THREE.Vector3(0, 0, 0), powerupTypes[i]);
-        powerup.position.set(x, 3, z); // Elevate the powerups
+        powerup.position.set(x, 4, z); // Elevated higher for better visibility
         
         // Add rotation data
         powerup.userData.type = "powerup";
