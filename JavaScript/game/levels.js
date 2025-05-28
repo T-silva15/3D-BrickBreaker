@@ -18,16 +18,20 @@ export const levels = [
         ballSpeed: 0.3,
         backgroundColor: 0x001122,
         powerupChance: 0.4
-    },
-    {
+    },    {
         name: "Fortaleza Resistente",
         description: "Tijolos mais duros requerem estratégia",
         brickRows: 4,
         brickCols: 8,
         brickTypes: ['normal', 'strong'],
         pattern: 'fortress',        brickLayout: {
-            strong: [[2,3,4,5], [1,2,5,6]], // positions of strong bricks
-            normal: 'fill' // fill remaining spaces
+            strong: [
+                [2,3,4,5],           // top row: central fortress wall
+                [1,2,5,6],           // second row: fortress extensions
+                [0,1,6,7],           // third row: fortress outer walls
+                [2,3,4,5]            // bottom row: fortress base
+            ],
+            normal: 'fill'           // fill remaining spaces with normal bricks
         },
         paddleSpeed: 0.4,
         ballSpeed: 0.3,

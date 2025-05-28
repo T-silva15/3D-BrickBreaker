@@ -659,7 +659,7 @@ export function createBricks() {
     }
     
     const levelConfig = levels[levelIndex];
-    console.log(`Creating level ${state.level}: ${levelConfig.name}`); // Debug log      // Special handling for boss level (level 5)
+    console.log(`Creating level ${state.level}: ${levelConfig.name}`); 
     if (state.level === 5) {
         console.log('Creating boss level'); // Debug log
         const boss = createBossBrick(new THREE.Vector3(0, constants.GAME_HEIGHT/3, 0));
@@ -692,14 +692,16 @@ export function createBricks() {
         
         for (let row = 0; row < rows; row++) {
             const rowZ = startZ + row * (constants.BRICK_DEPTH + brickSpacingZ);
-            
-            for (let col = 0; col < cols; col++) {
+              for (let col = 0; col < cols; col++) {
                 // Skip some bricks for visual interest in higher levels
                 if (state.level > 3 && (layer + row + col) % 7 === 0) continue;
+                  // Determine brick type based on strategic layout
+                const brickType = getBrickTypeAtPosition(levelConfig, row, col);
                 
-                const brickType = levelConfig.brickTypes[
-                    Math.floor(Math.random() * levelConfig.brickTypes.length)
-                ];
+                // Debug logging for Level 2 strong bricks
+                if (state.level === 2 && brickType === 'strong') {
+                    console.log(`Placing strong brick at row ${row}, col ${col}`);
+                }
                 
                 const brickGeometry = new THREE.BoxGeometry(
                     constants.BRICK_WIDTH,
@@ -785,6 +787,45 @@ export function createBricks() {
     }
     
     console.log(`Level ${state.level} loaded with ${state.bricks.length} bricks`);
+}
+
+// Function to determine brick type at a specific position based on level layout
+function getBrickTypeAtPosition(levelConfig, row, col) {
+    const brickLayout = levelConfig.brickLayout;
+    
+    // If no brickLayout specified, use random selection
+    if (!brickLayout) {
+        return levelConfig.brickTypes[
+            Math.floor(Math.random() * levelConfig.brickTypes.length)
+        ];
+    }
+    
+    // Check each brick type in the layout configuration
+    for (const [brickType, positions] of Object.entries(brickLayout)) {
+        if (positions === 'fill') {
+            // This type fills remaining spaces - handle it last
+            continue;
+        }
+        
+        if (Array.isArray(positions)) {
+            // positions is array of row arrays like [[1,2,3], [7,8,9]]
+            if (positions[row] && positions[row].includes(col)) {
+                return brickType;
+            }
+        }
+    }
+    
+    // Check for 'fill' type last (fills any unspecified positions)
+    for (const [brickType, positions] of Object.entries(brickLayout)) {
+        if (positions === 'fill') {
+            return brickType;
+        }
+    }
+    
+    // Fallback to random if no layout matches
+    return levelConfig.brickTypes[
+        Math.floor(Math.random() * levelConfig.brickTypes.length)
+    ];
 }
 
 
@@ -1205,21 +1246,7 @@ function handleBrickCollision(brick, brickBox) {
         // Z-axis collision (front or back)
         state.ballVelocity.z *= -1;
     }
-    
-    // Add score
-    state.score += brick.userData.points;
-    
-    // Decrease brick's hit count
-    brick.userData.hits--;
-    
-    // Deactivate brick if no more hits left
-    if (brick.userData.hits <= 0) {
-        deactivateBrick(brick);
-    } else {
-        // Just fade the brick a bit
-        brick.material.opacity = 0.7;
-    }
-
+      // Handle special brick types first
     if (brick.userData.type === 'boss') {
         // Damage boss
         brick.userData.health--;
@@ -1248,6 +1275,7 @@ function handleBrickCollision(brick, brickBox) {
         return;
     }
 
+    // Handle explosive ball collision
     if (state.ball.userData.explosive) {
         // Get all bricks within radius
         const explosionRadius = constants.BRICK_WIDTH * 2;
@@ -1267,13 +1295,26 @@ function handleBrickCollision(brick, brickBox) {
             }
         });
     } else {
-        // Normal brick collision
+        // Normal brick collision - add score and decrease hit count
         state.score += brick.userData.points;
         brick.userData.hits--;
+          // Deactivate brick if no more hits left
         if (brick.userData.hits <= 0) {
             deactivateBrick(brick);
         } else {
-            brick.material.opacity = 0.7;
+            // Show damage based on remaining hits
+            const maxHits = brickTypes[brick.userData.type]?.health || 1;
+            const damageRatio = 1 - (brick.userData.hits / maxHits);
+            
+            // Reduce opacity based on damage
+            brick.material.opacity = 1 - (damageRatio * 0.4);
+            
+            // Add slight color tint to show damage for strong/metal bricks
+            if (brick.userData.type === 'strong' || brick.userData.type === 'metal') {
+                const originalColor = brickTypes[brick.userData.type].color;
+                const damagedColor = new THREE.Color(originalColor).lerp(new THREE.Color(0x444444), damageRatio * 0.3);
+                brick.material.color.copy(damagedColor);
+            }
         }
     }
 }
@@ -1580,22 +1621,6 @@ function handleExtraBallBrickCollisions(ball) {
             
             break;
         }
-    }
-    if (brick.userData.type === 'boss') {
-        // Damage boss directly
-        brick.userData.health--;
-        brick.material.emissiveIntensity = 1;
-        setTimeout(() => {
-            brick.material.emissiveIntensity = 0;
-        }, 100);
-        
-        if (brick.userData.health <= 0) {
-            // Boss defeated
-            brick.userData.projectiles.forEach(p => state.scene.remove(p));
-            deactivateBrick(brick);
-            displayMessage("Victory!", "Boss Defeated!", true);
-        }
-        return;
     }
 }
 
