@@ -40,19 +40,26 @@ export const levels = [
     },    {
         name: "Reação em Cadeia",
         description: "Use explosões estrategicamente",
-        brickRows: 5,
+        brickRows: 6,
         brickCols: 10,
-        brickTypes: ['normal', 'explosive', 'trigger'],
-        pattern: 'strategic',        brickLayout: {
-            explosive: [
-                [1,2,3], [7,8,9],     // top row: two clusters of 3 bricks each
-                [0,1,2], [8,9],       // second row: cluster of 3 left, cluster of 2 right
-                [3,4,5,6],            // third row: cluster of 4 in center
-                [1,2], [7,8],         // fourth row: two clusters of 2 bricks each
-                [4,5,6]               // bottom row: cluster of 3 in center
-            ],
-            trigger: [],              // no trigger bricks - let explosives chain naturally
-            normal: 'fill'
+        brickTypes: ['normal', 'explosive'],
+        pattern: 'strategic',
+        brickLayout: {
+            explosive: {
+                // Row 0: Two separate clusters at top - left and right sides
+                0: [1,2,7,8],
+                // Row 1: Extend both top clusters vertically
+                1: [1,2,8],
+                // Row 2: Mid-level clusters - far left and center
+                2: [0,4,5],
+                // Row 3: Single strategic bricks for chain bridging
+                3: [4,8],
+                // Row 4: Bottom clusters - left continuation and right cluster
+                4: [0,7,8,9],
+                // Row 5: Final center cluster for maximum chain potential
+                5: [4,5]
+            },
+            normal: 'fill'           // fill remaining spaces with normal bricks
         },
         paddleSpeed: 0.45,
         ballSpeed: 0.3,

@@ -813,6 +813,11 @@ function getBrickTypeAtPosition(levelConfig, row, col) {
             if (positions[row] && positions[row].includes(col)) {
                 return brickType;
             }
+        } else if (typeof positions === 'object' && positions !== null) {
+            // positions is object with row keys like {0: [1,2,3], 1: [7,8,9]}
+            if (positions[row] && positions[row].includes(col)) {
+                return brickType;
+            }
         }
     }
     
