@@ -1,10 +1,3 @@
-/**
- * Audio System for 3D Brick Breaker Game
- * 
- * This module provides a comprehensive audio system using the Web Audio API
- * to create dynamic sound effects for various game events.
- */
-
 // Audio system state
 const audioState = {
     context: null,
