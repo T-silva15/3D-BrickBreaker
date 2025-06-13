@@ -170,7 +170,9 @@ export function createPowerUp(position, type) {
 
             // Add both parts to the group
             powerUpGroup.add(horizontalPart);
-            powerUpGroup.add(verticalPart);        } else if (type === POWERUP_TYPE.PADDLE_DOUBLE_SIZE) {
+            powerUpGroup.add(verticalPart);        
+        } 
+            else if (type === POWERUP_TYPE.PADDLE_DOUBLE_SIZE) {
             // Create "2x" symbol for paddle double size
             const powerUpMaterial = new THREE.MeshStandardMaterial({
                 emissive: 0xff9900,  // Orange color to distinguish from size up

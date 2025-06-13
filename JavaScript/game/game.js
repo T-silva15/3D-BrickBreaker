@@ -73,7 +73,7 @@ export const constants = {
     PADDLE_DEPTH: 10,
     BALL_RADIUS: 0.8,
     PADDLE_SPEED: 0.5,
-    MAX_LEVELS: 5 // Set to the number of levels in levels.js
+    MAX_LEVELS: 5
 };
 
 // Initialize the game
@@ -139,8 +139,6 @@ export function initGame(level) {
         document.body.style.margin = "0";
         document.body.style.overflow = "hidden";
         
-        // Only display initial instructions if no level is provided
-        // The level-specific message will be displayed by startLevel instead
         if (!level) {
             displayMessage("Brick Breaker 3D", "Press Enter to Start");
         }

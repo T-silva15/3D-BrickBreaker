@@ -15,7 +15,7 @@ export function setupLighting() {
     state.lights.ambient = new THREE.AmbientLight(0x404040, 1.5);
     state.scene.add(state.lights.ambient);
 
-    // Main directional light (simulates sun)
+    // Main directional light
     state.lights.directional = new THREE.DirectionalLight(0xffffff, 1);
     state.lights.directional.position.set(10, 30, 20);
     state.lights.directional.castShadow = true;

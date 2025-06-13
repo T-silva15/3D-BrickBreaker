@@ -14,6 +14,7 @@ export function setupCameras() {
     state.cameras = [];
     
     // Main game camera (perspective from behind)
+    // FOV, Aspect Ratio, Near, Far
     const mainCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     mainCamera.position.set(0, 10, 40);
     mainCamera.lookAt(0, 0, 0);
