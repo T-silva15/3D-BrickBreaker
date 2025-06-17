@@ -7,12 +7,7 @@ A fully-featured 3D Brick Breaker game implemented using Three.js, featuring adv
 ![WebGL](https://img.shields.io/badge/WebGL-2.0-green.svg)
 ![Grade](https://img.shields.io/badge/Grade-18.81%2F20-brightgreen.svg)
 
-## 🎓 Academic Information
-
-- **Course**: Computer Graphics (CG)
-- **Project**: TP1 - 3D Interactive Game
-- **Grade**: **18.81/20** 🏆
-- **Technology**: Three.js/WebGL
+> **Academic Project** | 3rd Year, 2nd Semester | **Final Grade: 18.81** 🏆
 
 ## 📋 Overview
 
