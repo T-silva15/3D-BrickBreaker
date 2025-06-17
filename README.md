@@ -259,7 +259,7 @@ Multiple camera perspectives enhance the 3D experience:
 
 ## 📄 License
 
-This project was developed as part of academic coursework in Computer Graphics. All code and assets are original work created for educational purposes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. This project was developed as part of academic coursework in Computer Graphics. All code and assets are original work created for educational purposes. 
 
 ## 🔮 Future Enhancements
 
